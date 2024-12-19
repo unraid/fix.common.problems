@@ -1,9 +1,9 @@
 <?xml version='1.0' standalone='yes'?>
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
-<!ENTITY author    "Andrew Zawadzki">
-<!ENTITY version   "2024.12.19">
-<!ENTITY md5       "72e105ab99f6d486b26f2870c0c41333">
+<!ENTITY author    "Lime Technology">
+<!ENTITY version   "2024.12.19a">
+<!ENTITY md5       "0a695a9bb026f02840a3f8fbbe293566">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
