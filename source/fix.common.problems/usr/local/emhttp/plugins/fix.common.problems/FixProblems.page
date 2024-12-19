@@ -1,0 +1,418 @@
+Menu="Utilities"
+Icon="warning"
+Title="Fix Common Problems"
+---
+<?
+###############################################################
+#                                                             #
+# Fix Common Problems copyright 2015-2024, Andrew Zawadzki    #
+#                                                             #
+###############################################################
+
+require_once("/usr/local/emhttp/plugins/fix.common.problems/include/caCredits.php");
+require_once("/usr/local/emhttp/plugins/fix.common.problems/include/helpers.php");
+$plugin = "fix.common.problems";
+
+$settings = json_decode(@file_get_contents("/boot/config/plugins/fix.common.problems/settings.json"),true);
+
+if ( ! isset($settings['notifications']) ) { $settings['notifications'] = "all"; }
+if ( ! isset($settings['frequency']) ) { $settings['frequency'] = "disabled"; }
+if ( ! isset($settings['disableSpinUp']) ) { $settings['disableSpinUp'] = "true"; }
+if ( ! isset($settings['hacksPerDay']) ) { $settings['hacksPerDay'] = 10; }
+if ( ! isset($settings['logIgnored']) ) { $settings['logIgnored'] = "yes"; }
+
+if ( is_file("/tmp/fix.common.problems/troubleshoot") ) { $troubleshoot = true; } else $troubleshoot = false;
+
+if ( is_dir("/mnt/user") ) {
+  $userEnabled = "true";
+} else $userEnabled = "false";
+$unRaid67 = version_compare(unRaidVersion(),"6.7.0-rc1",">");
+
+?>
+<script src="<?autov("/webGui/javascript/jquery.filetree.js")?>"></script>
+<script>
+
+var caURL = "/plugins/<?=$plugin?>/include/fixExec.php";
+
+function myAlert(description,textdescription,textimage,imagesize, outsideClick, showCancel, showConfirm, alertType) {
+  if ( !outsideClick ) outsideClick = false;
+  if ( !showCancel )   showCancel = false;
+  if ( !showConfirm )  showConfirm = false;
+  if ( imagesize == "" ) { imagesize = "80x80"; }
+   
+  swal({
+    title: description,
+    text: textdescription,
+    imageUrl: textimage,
+    imageSize: imagesize,
+    allowOutsideClick: outsideClick,
+    showConfirmButton: showConfirm,
+    showCancelButton: showCancel,
+    type: alertType,
+    html: true
+  });
+}
+
+function myCloseAlert() {
+  swal.close();
+}
+
+function ignoreError(error,type,button) {
+  swal({
+    title: "Ignore "+type+"?",
+    text: "Are you sure you want to ignore this "+type+":<br><font color='red'><b>"+error+"</b></font><br>As a <em>general rule</em> this is not recommended unless you are absolutely sure about this",
+    showConfirmButton: true,
+    showCancelButton: true,
+    closeOnConfirm: false,
+    type: "warning",
+    html: true
+  },
+  function() {
+    $.post(caURL,{action:"ignoreError",error:error});
+      swal({
+        title: "Ignored!",
+        text: "On future scans, <font color='green'><b>"+error+"</b></font> will not generate a "+type+".  This will still however be logged in the syslog.",
+        showConfirmButton: true,
+        showCancelButton: false,
+        closeOnConfirm: true,
+        html: true,
+        type: "success"
+      });
+      $("#"+button).prop("disabled",true);
+      $("#"+button).prop("value","Ignored");
+  });
+}
+
+function readdError(error,button) {
+  swal({
+    title: "Readd This Error?",
+    text: "Are you sure you want to begin scanning for this error again:<br><font color='red'><b>"+error+"</b></font>",
+    showConfirmButton: true,
+    showCancelButton: true,
+    closeOnConfirm: false,
+    type: "warning",
+    html: true
+  },
+  function() {
+    $.post(caURL,{action:"readdError",error:error});
+      swal({
+        title: "Added!",
+        text: "On future scans, <font color='red'><b>"+error+"</b></font> will generate either a warning or an error",
+        showConfirmButton: true,
+        showCancelButton: false,
+        closeOnConfirm: true,
+        html: true,
+        type: "success"
+      });
+      $("#"+button).prop("disabled",true);
+      $("#"+button).prop("value","Monitored");
+    });
+}
+
+function readdAll() {
+  swal({
+    title: "Re-Add All Errors?",
+    text: "Are you sure you want to set all of the current ignored errors back to generating errors / warnings?",
+    showConfirmButton: true,
+    showCancelButton: true,
+    closeOnConfirm: false,
+    type: "warning",
+    html: true
+  },
+  function() {
+    $.post(caURL,{action:"readdAll"});
+      swal({
+        title: "Re-Added",
+        text: "On future scans, all errors / warnings found will generate an error / warning",
+        showConfirmButton: true,
+        showCancelButton: false,
+        closeOnConfirm: true,
+        html: true,
+        type: "success"
+      });
+  });
+}
+function extendedTest() {
+  swal({
+    title: "Run Extended Tests?",
+    text: "This will start a background process which will check all of your files for permission problems, duplicates, and other errors.<br><br>You will receive a notification when complete",
+    showConfirmButton: true,
+    showCancelButton: true,
+    closeOnConfirm: true,
+    html: true,
+    type: "warning"
+  }, function() {
+    $.post(caURL,{action:'runExtended'});
+		$("#extendedTest,#extendedLog").prop("disabled",true);
+		$("#extendedStatus").html("Extended Test Running");
+  });
+}
+
+function troubleshoot() {
+  swal({
+    title: "Troubleshooting Mode",
+    text: "This is a special mode used generally to troubleshoot random lockups, resets, etc.<br><br>When running in this mode the syslog is <b>continually</b> captured to the flash drive, and a diagnostics dump is performed every <b>30 minutes</b><br><br><font color='red'>When posting for help in the forums, you should include both the diagnostics file and the syslog.txt file located within /boot/logs</font>.  <b>It will also be extremely helpful to include a screenshot (use your phone) of what appears on the local monitor when the crash / lockup occurs</b><br><br>Once started, the only way to abort this mode is by <b>restarting</b> your server",
+    showConfirmButton: true,
+    showCancelButton: true,
+    html: true,
+    type: "warning",
+    closeOnConfirm: false
+  }, function() {
+    $.post(caURL,{action:'troubleshoot'});
+    $("#troubleshoot").val("Troubleshooting running");
+    $("#troubleshoot").prop("disabled",true);
+    swal({
+      title: "Troubleshooting Started",
+      text: "When uploading your diagnostics for review on the unRaid forums, remember to include <b>/logs/FCPsyslog_tail.txt</b> from the flash drive, as it may contain further information that will not be present in the diagnostic files",
+      html: true,
+      showCancelButton: false,
+      showConfirmButton: true,
+      closeOnConfirm: true,
+      type: "success"
+    });
+  });
+
+}
+
+function checkList() {
+  openBox('/plugins/fix.common.problems/scripts/checkList.php',"What Is Checked?",550,550);
+}
+
+var fixScan = new NchanSubscriber('/sub/fixscan');
+var fixScanCount = 0;
+fixScan.on('message',function(data) {
+	if (data) {
+	console.log(data);
+		var results = JSON.parse(data)
+		if ( results.errors ) {
+			if ( fixScanCount == 1 ) {
+				myCloseAlert();
+				$("#settings").html(results.errors);
+				$.post(caURL,{action:'getTimeStamp'}, function(timestamp) {
+					if (timestamp) {
+						timestamp = timestamp.replace("*","");
+						$("#timestamp").html(timestamp);
+					}
+				});
+				fixScan.stop();
+				fixScanCount = 0;
+			}
+		}
+		if ( results.test ) {
+			fixScanCount = 1;
+			$("#currentTest").html(results.test);
+		}
+	}
+});
+
+$(function() {
+	if ( typeof caPluginUpdateCheck === "function" ) {
+		caPluginUpdateCheck("fix.common.problems.plg",{name:"Fix Common Problems"});
+	}
+	
+  if ( "<?=$userEnabled?>" == "true" ) {
+    $("#userOnly").show();
+    checkExtended();
+  } else {
+    $("#userOnly").hide();
+  }
+  
+  $("#excludedFoldersList").fileTree({
+    root: "/mnt/user",
+    multiSelect: true,
+    filter: "HIDE_FILES_FILTER",
+    folderEvent: "nothing"
+  });
+  
+  $("#frequency").val("<?=$settings['frequency']?>");
+  $("#notifications").val("<?=$settings['notifications']?>");
+  $("#disableSpinUp").val("<?=$settings['disableSpinUp']?>");
+  $("#hacksPerDay").val("<?=$settings['hacksPerDay']?>");
+  $("#logIgnored").val("<?=$settings['logIgnored']?>");
+  $("#excludedPerms").val("<?=$settings['excludedPerms'] ?? ""?>");
+
+  if ( "<?=$troubleshoot?>" ) {
+    $("#troubleshoot").prop("disabled",true);
+    $("#troubleshoot").val("Troubleshooting running");
+  }
+  
+  if ($('.adsitem').length==0 || $('.adsitem').css('display')=='none') {
+		alert("Ad blocker detected.  Ad blockers can interfere with the GUI of unRaid, and it is recommended to whitelist your server in the ad-blocker settings");
+  }
+	
+  $.post(caURL,{action:'getTimeStamp'},function(data) {
+    if (data) {
+      if ( (data.charAt(0)) == "*" ) {
+        rescan();
+      } else {
+        $.post(caURL,{action:'displayErrors'}, function(errors) {
+          if (errors) {
+            $("#settings").html(errors);
+          }
+        });
+        $("#timestamp").html(data);
+      }
+    }
+  });
+});
+
+function checkExtended() {
+  $.post(caURL,{action:'checkExtendedStatus'},function(data) {
+    if (data) {
+      $("#extendedStatus").html(data);
+    }
+  });
+}
+
+function rescan() {
+  $("#extendedStatus").html("Scanning...");
+  myAlert("Scanning","Now Scanning your system for common problems.  This may take a minute.<br><br><span id='currentTest'></span>","","",false,false,false,"warning");
+  $.post(caURL,{action:'scan'});
+	fixScan.start();
+}
+function acknowledgeUncleanReboot(button)
+{
+  $.post(caURL,{action:'acknowledgeUncleanReboot'});
+  $("#"+button).hide();
+}
+
+function acknowledgeOOM(button) {
+  $.post(caURL,{action:'acknowledgeOOM'});
+  $("#"+button).hide();
+}
+
+function acknowledgeTrace(button) {
+  $.post(caURL,{action:'acknowledgeTrace'});
+  $("#"+button).hide();
+}
+
+function acknowledgeMCE(button) {
+  $.post(caURL,{action:'acknowledgeMCE'});
+  $("#"+button).hide();
+}
+function excludeSelected() {
+	$el = $( "#excludedFoldersList input:checked" );
+
+	if( $el.length === 0 )
+	{
+		checked = "";
+	}	else {
+		var checked = $el
+		.map(function() {
+			return $(this).parent().find('a:first').text();
+		})
+		.get()
+		.join(',');
+	}
+  $("#excludedPerms").val(checked);
+  enableApply();
+}
+
+function enableApply() {
+  $("#applyButton").prop("disabled",false);
+}
+
+function apply() {
+  var frequency = $("#frequency").val();
+  var notifications = $("#notifications").val();
+  var disableSpinUp = $("#disableSpinUp").val();
+  var hacksPerDay = $("#hacksPerDay").val();
+  var logIgnored = $("#logIgnored").val();
+  var excludedPerms = $("#excludedPerms").val();
+  
+  $.post(caURL,{action:'apply',excludedPerms:excludedPerms,logIgnored:logIgnored,frequency:frequency,notifications:notifications,disableSpinUp:disableSpinUp,hacksPerDay:hacksPerDay});
+  $("#applyButton").prop("disabled",true);
+}
+
+function showCredits() {
+  myAlert("Fix Common Problems","<?=$caCredits?>","/plugins/<?=$plugin?>/images/fix.common.problems.png","96x96", true, false, true);
+}
+
+</script>
+<style>
+.fileTree{width:305px;max-height:150px;overflow:scroll;position:absolute;z-index:100;display:none;}
+</style>
+<link type="text/css" rel="stylesheet" href="/webGui/styles/jquery.filetree.css">
+<a style='float:right;cursor:pointer' onclick='showCredits();'>Credits</a>
+<br>Note that certain errors due to how they are found will have an "Acknowledge" button.  Clicking the acknowledge button will prevent Fix Common Problems from finding these certain errors until the next reboot<br><br>
+<b>Errors / Warnings Listed are from the last <em>scheduled</em> scan.  Press Rescan to update with the current issues found<br></b><br>
+<div  style='width:600px;float:left;'>
+<table>
+<tr>
+  <td><b>Frequency to run background checks</b></td>
+  <td><select id='frequency' onchange='enableApply();'>
+        <option value='disabled'>Disabled</option>
+        <option value='hourly'>Hourly</option>
+        <option value='daily'>Daily</option>
+        <option value='weekly'>Weekly</option>
+        <option value='monthly'>Monthly</option>
+      </select>
+  </td>
+</tr>
+<tr>
+  <td><b>Send notifications on errors?</b></td>
+  <td><select id='notifications' onchange='enableApply();'>
+        <option value='disabled'>Disabled</option>
+        <option value='all'>All errors / Warnings</option>
+        <option value='errors'>Errors Only</option>
+      </select>
+  </td>
+</tr>
+<tr>
+  <td><b>Avoid spinning up disks for tests?</b></td>
+  <td><select id='disableSpinUp' onchange='enableApply();'>
+    <option value='false'>Always perform tests (recommended)</option>
+    <option value='true'>Skip tests on spun down disks</option>
+  </select></td>
+</tr>
+<tr>
+  <td><b>Number of allowed invalid logins per day:</b></td>
+  <td><input type='number' id='hacksPerDay' onchange='enableApply();'></td>
+</tr>
+<tr>
+  <td><b>Log Ignored Errors/Warnings?</b></td>
+  <td><select id='logIgnored' onchange='enableApply();'>
+    <option value='yes'>Yes (Recommended)</option>
+    <option value='no'>No</option>
+  </td>
+</tr>
+</table>
+</div>
+<div></div><div style='margin-left:540px;'>
+<b>Permission Fix Excluded On: <input type='text' id='excludedPerms'</input><br>(Docker Appdata Folders and CA backup Destination is automatically excluded)</b><br>
+<center><input type='button' value='Exclude Selected' onclick='excludeSelected();'></center>
+<div id='excludedFoldersList' style='margin-left:240px;width:305px;max-height:150px;overflow:scroll;'></div><br>
+</div>
+
+> <b>Frequency to run background checks</b> - Set to how often you would like this plugin to automatically scan your system for errors and warnings.<br>
+> <b>Send notifications on errors</b> determines under what circumstances the plugin will notify you through unRaid's notification system of any issues<br>
+> <b>Avoid spinning up disks for tests</b> - Will try and avoid certain tests on disks (notably the write check) that unRaid thinks are currently spun down<br>
+> <b>Number of allowed invalid logins per day</b> - This is the number of "grace" invalid logins allowed per day either via the local console or through SSH / Telnet (ie: you typed your password wrong)  This is used to determine if any hacking attempts are being made on your server<br>
+
+
+<input type='button' id='applyButton' value='Apply' onclick='apply();' disabled><input type='button' value='Rescan' onclick='rescan();'><input type='button' onclick='done();' value='Done'>
+
+<!-- 
+<br><br><span id='userOnly'>
+<input type='button' id='extendedTest' value='Run Extended Test' onclick='extendedTest();'><a href='/plugins/fix.common.problems/scripts/showExtendedLog.php' target='_blank'><input type='button' value='View Results' id='extendedLog';></a> <font color='red'>Status:</font> <font color='green'> <span id='extendedStatus'></span></font>
+> Extended tests will perform more tests on every file in the array.
+</span>
+<center><b>Time of last scan: <span id='timestamp'></span></center></b> -->
+
+<div id="debugging"></div>
+<span id='settings'></span>
+
+<center><input type='button' value='What is checked' onclick='checkList();'></center>
+
+<center>
+<b>For assistance with any of the errors / warnings displayed here, please post a new topic in <a href='https://forums.unraid.net/forum/55-general-support/' target='_blank'>General Support</a></b><br>
+<b>For assistance with the plugin, including requests for additional checks, false positives, etc please post <a href='https://forums.unraid.net/topic/47266-plugin-ca-fix-common-problems/' target='_blank'>HERE</a></b>
+</center>
+
+> <center><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7M7CBCVU732XG' target='_blank'><img src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif"></a></center>
+
+<div class="adsitem"></div>
+<script>
+
+
+</script>
