@@ -1,11 +1,14 @@
 #!/usr/bin/php
 <?PHP
-
-##################################################
-#                                                #
-# Some helper functions to make your life easier #
-#                                                #
-##################################################
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
 
 function readJsonFile($filename) {
   return @json_decode(@file_get_contents($filename),true);

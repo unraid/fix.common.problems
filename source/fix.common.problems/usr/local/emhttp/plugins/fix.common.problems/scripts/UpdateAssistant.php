@@ -1,5 +1,14 @@
 #!/usr/bin/php
 <?PHP
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
 $docroot = $docroot ?? $_SERVER['DOCUMENT_ROOT'] ?: '/usr/local/emhttp';
 
 require_once("$docroot/plugins/dynamix.plugin.manager/include/PluginHelpers.php");

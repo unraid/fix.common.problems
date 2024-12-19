@@ -1,9 +1,13 @@
 <?
-###############################################################
-#                                                             #
-# Community Applications copyright 2015-2024, Andrew Zawadzki #
-#                                                             #
-###############################################################
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
 
 function getLineCount($directory) {
   global $lineCount, $charCount;
@@ -34,11 +38,10 @@ table {background-color:transparent;}
       </tr>
     </table></center>
     <br>
-    <center><em><font size='1'>Copyright 2015-2024 Andrew Zawadzki</font></em></center>
-    <center><a href='https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7M7CBCVU732XG' target='_blank' rel='noreferrer'><img src='https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif'></a></center>
-    <br><center><a href='https://forums.lime-technology.com/topic/47266-plugin-ca-fix-common-problems/' target='_blank'>Plugin Support Thread</a></center>
+    <center><em>Copyright 2020-2024 Lime Technology</em></center>
+    <center><em>Copyright 2015-2024 Andrew Zawadzki</em></center>
+
   ";
-  getLineCount("/usr/local/emhttp/plugins/fix.common.problems");
-  $caCredits .= "<center>$lineCount Lines of code and counting! ($charCount characters)</center>";
+ 
   $caCredits = str_replace("\n","",$caCredits);
 ?>

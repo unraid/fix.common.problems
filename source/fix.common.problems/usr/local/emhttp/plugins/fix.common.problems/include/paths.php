@@ -1,10 +1,13 @@
 <?
-
-###############################################################
-#                                                             #
-# Fix Common Problems copyright 2015-2024, Andrew Zawadzki    #
-#                                                             #
-###############################################################
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
 
 $communityPaths['autoUpdateSettings']   = "/boot/config/plugins/ca.update.applications/AutoUpdateSettings.json";
 $communityPaths['dockerUpdateSettings'] = "/boot/config/plugins/ca.update.applications/DockerUpdateSettings.json";

@@ -1,10 +1,14 @@
 #!/usr/bin/php
 <?
-###############################################################
-#                                                             #
-# Fix Common Problems copyright 2015-2024, Andrew Zawadzki    #
-#                                                             #
-###############################################################
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
 
 require_once("/usr/local/emhttp/plugins/fix.common.problems/include/paths.php");
 require_once("/usr/local/emhttp/plugins/fix.common.problems/include/helpers.php");

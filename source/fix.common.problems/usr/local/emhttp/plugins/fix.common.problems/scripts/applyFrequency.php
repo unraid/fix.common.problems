@@ -1,5 +1,14 @@
 #!/usr/bin/php
 <?
+########################################
+#                                      #
+# Fix Common Problems                  #
+# Copyright 2020-2024, Lime Technology #
+# Copyright 2015-2024, Andrew Zawadzki #
+#                                      #
+# Licenced under GPLv2                 #
+#                                      #
+########################################
   $script = "fix.common.problems.sh";
   
   @unlink("/etc/cron.daily/$script");
