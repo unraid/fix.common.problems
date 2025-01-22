@@ -178,7 +178,8 @@ if ( $troubleshooting ?? false) {
 	"macvlanfix",
 	"dockerPatch6812",
 	"oldStyleSSDTrim",
-	"syslinuxRoot"
+	"syslinuxRoot",
+	"unraidPatchInstalled"
 	);
 	$currentTest = 0;
 	foreach ($tests as $test) {

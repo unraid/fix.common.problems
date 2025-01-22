@@ -2426,4 +2426,18 @@ function syslinuxRoot() {
     addError("root kernel parameter in syslinux.cfg","A kernel parameter (root=...) is present in your syslinux.cfg file (/syslinux/syslinux.cfg on the flash drive).  This option was previously needed for some users in order to boot Unraid.  It has not been required for a number of releases, and will prevent the OS from booting 7.0 if it is present.  You should edit your syslinux.cfg file and remove that option.  Fix this here: ".addLinkButton("Flash","/Settings/Flash"));
   }
 }
+function unraidPatchInstalled() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList,$unRaidVersion;
+
+  if ( version_compare($unRaidVersion,"6.10.0","<") ) 
+    return;
+
+  if ( ! file_exists("/var/log/plugins/unraid.patch.plg") ) {
+    addError("Unraid Patch Plugin not installed","The unraid patch plugin will help protect your server by keeping the OS up to date with the latest patches.  Install the plugin from here: ".addLinkButton("Apps","/Apps?search=unraid%20patch"),"https://forums.unraid.net/topic/185560-unraid-patch-plugin/");
+    return;
+  }
+  if ( ! file_exists("/boot/config/plugins/unraid.patch/accepted") ) {
+    addError("Unraid Patch Not Accepted","You must click ACCEPT on the popup.  Accept this here: ".addLinkButton("Unraid Patch","/Tools/unraidPatch"),"https://forums.unraid.net/topic/185560-unraid-patch-plugin/");
+  }
+}
 ?>

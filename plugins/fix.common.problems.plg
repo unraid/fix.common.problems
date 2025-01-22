@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
-<!ENTITY version   "2024.12.19a">
-<!ENTITY md5       "0a695a9bb026f02840a3f8fbbe293566">
+<!ENTITY version   "2025.01.22">
+<!ENTITY md5       "6a22f995bb944bb5e137102b5a63bfaa">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
@@ -13,6 +13,9 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="warning" min="6.7.0">
 
 <CHANGES>
+###2025.01.22
+- Add in checks for unraid patch plugin
+
 ###2024.12.19
 - Move repository to unraid
 
