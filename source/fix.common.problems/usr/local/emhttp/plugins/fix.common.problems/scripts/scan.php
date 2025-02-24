@@ -179,7 +179,8 @@ if ( $troubleshooting ?? false) {
 	"dockerPatch6812",
 	"oldStyleSSDTrim",
 	"syslinuxRoot",
-	"unraidPatchInstalled"
+	"unraidPatchInstalled",
+	"TSHostMode"
 	);
 	$currentTest = 0;
 	foreach ($tests as $test) {

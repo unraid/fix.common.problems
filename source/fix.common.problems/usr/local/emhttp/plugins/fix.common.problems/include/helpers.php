@@ -401,6 +401,9 @@ function readXmlFile($xmlfile) {
   $o['Support']     = ($doc->getElementsByTagName( "Support" )->length ) ? $doc->getElementsByTagName( "Support" )->item(0)->nodeValue : $Repo['forum'];
   $o['Support']     = $o['Support'];
   $o['IconWeb']     = stripslashes($doc->getElementsByTagName( "Icon" )->item(0)->nodeValue);
+  $o['TailscaleEnabled'] = $doc->getElementsByTagName("TailscaleEnabled")->item(0)->nodeValue ?? false;
+  $o['Network'] = $doc->getElementsByTagName("Network")->item(0)->nodeValue ?? false;
+
  
   removeXMLtags($o);
   return $o;

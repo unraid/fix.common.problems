@@ -2440,4 +2440,22 @@ function unraidPatchInstalled() {
     addError("Unraid Patch Not Accepted","You must click ACCEPT on the popup.  Accept this here: ".addLinkButton("Unraid Patch","/Tools/unraidPatch"),"https://forums.unraid.net/topic/185560-unraid-patch-plugin/");
   }
 }
+
+function TSHostMode() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList,$unRaidVersion;
+
+  if ( ! $dockerRunning ) { return; }
+
+  $dockerTemplates = new DockerTemplates();
+  $info = $dockerTemplates->getAllInfo();
+  foreach ($info as $container) {
+    if ( is_file($container['template']) ) {
+      $xmlTemplate = readXmlFile($container['template']);
+
+      if ( $xmlTemplate['Network'] == "host"  &&  ($xmlTemplate['TailscaleEnabled'] ??false) == true) {
+        addError("Docker application <b>".$xmlTemplate['Name']."</b> has TailScale integration enabled and has a network type of host","This is a security issue, and could allow UNAUTHENTICATED ACCESS to your server's GUI and resources.  To secure your system, you should either switch the network type of this container to be bridge or disable tailscale integration for this particular container ".addLinkButton("Edit ".$xmlTemplate['Name'],"/Docker/UpdateContainer?xmlTemplate=edit:".$container['template']));
+      }
+    }
+  }
+}
 ?>
