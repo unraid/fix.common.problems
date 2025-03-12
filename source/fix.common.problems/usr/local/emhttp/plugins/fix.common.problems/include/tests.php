@@ -2432,6 +2432,9 @@ function unraidPatchInstalled() {
   if ( version_compare($unRaidVersion,"6.10.0","<") ) 
     return;
 
+  if ( version_compare($unRaidVersion,"6.12.15",">") )
+    return;
+  
   if ( ! file_exists("/var/log/plugins/unraid.patch.plg") ) {
     addError("Unraid Patch Plugin not installed","The unraid patch plugin will help protect your server by keeping the OS up to date with the latest patches.  Install the plugin from here: ".addLinkButton("Apps","/Apps?search=unraid%20patch"),"https://forums.unraid.net/topic/185560-unraid-patch-plugin/");
     return;

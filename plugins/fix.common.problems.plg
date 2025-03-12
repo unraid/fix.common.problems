@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
-<!ENTITY version   "2025.02.24">
-<!ENTITY md5       "5b0cd24b7776a21f77d75b03ca8b1a8b">
+<!ENTITY version   "2025.03.12">
+<!ENTITY md5       "96c7748f04e6f04b0461207b12bf5596">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
@@ -13,6 +13,9 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="warning" min="6.7.0">
 
 <CHANGES>
+###2925.03.12
+- Remove tests for unraid patch plugin on OS versions 7.0.0+
+
 ###2025.02.24
 - Check for Tailscale integration on docker containers with network type set to host
 
