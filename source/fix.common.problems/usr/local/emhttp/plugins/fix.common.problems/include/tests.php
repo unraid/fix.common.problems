@@ -782,7 +782,7 @@ function blacklistedPluginsInstalled() {
         addError("Blacklisted plugin <b>$plugin</b>","This plugin has been blacklisted and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  You should remove this plugin as its continued installation may cause adverse effects on your server.".addLinkButton("Plugins","/Plugins"));
       }
       if ( isset($caModeration[$pluginURL]['Deprecated']) ) {
-        addWarning("Deprecated plugin <b>$plugin</b>","This plugin has been deprecated and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  While this plugin should still be functional, it is no recommended to continue to use it.".addLinkButton("Plugins","/Plugins"));
+        addWarning("Deprecated plugin <b>$plugin</b>","This plugin has been deprecated and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  While this plugin should still be functional, it is not recommended to continue to use it.".addLinkButton("Plugins","/Plugins"));
       }
     }
   } else {
@@ -2139,7 +2139,8 @@ function unknownPluginInstalled() {
             if ( is_array($checkPlugin['PluginURL']) ) {                  # due to coppit
               $checkPlugin['PluginURL'] = $checkPlugin['PluginURL'][1];
             }
-            if ( $plugin == basename($checkPlugin['PluginURL']) ) {
+
+            if ( $pluginURL == $checkPlugin['PluginURL'] ) {
               $flag = true;
               break;
             }

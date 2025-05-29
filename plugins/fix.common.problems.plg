@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
-<!ENTITY version   "2025.03.12">
-<!ENTITY md5       "96c7748f04e6f04b0461207b12bf5596">
+<!ENTITY version   "2025.05.29">
+<!ENTITY md5       "8a1f11999fd5db889ab743553c4afe7e">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
@@ -13,7 +13,12 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="warning" min="6.7.0">
 
 <CHANGES>
-###2925.03.12
+###2025.05.29
+- Fixed: Plugins not present within application feed were being misidentified with incorrect messaging if a replacement with identical filename was present
+- Fixed: Typo in some messages
+- Removed Temporarily: Update assistant until the logic for determining next available OS version is completely revamped. Having it remain in place resulted in confusion and false positives
+
+###2025.03.12
 - Remove tests for unraid patch plugin on OS versions 7.0.0+
 
 ###2025.02.24
