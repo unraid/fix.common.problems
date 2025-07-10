@@ -104,6 +104,7 @@ switch ($_POST['action']) {
     $settings['disableSpinUp'] = isset($_POST['disableSpinUp']) ? urldecode(($_POST['disableSpinUp'])) : "";
     $settings['hacksPerDay'] = isset($_POST['hacksPerDay']) ? urldecode(($_POST['hacksPerDay'])) : "";
     $settings['logIgnored'] = isset($_POST['logIgnored']) ? urldecode(($_POST['logIgnored'])) : "";
+    $settings['dockerContainerCheck'] = isset($_POST['dockerContainerCheck']) ? urldecode(($_POST['dockerContainerCheck'])) : "";
     $settings['excludedPerms'] = isset($_POST['excludedPerms']) ? urldecode(($_POST['excludedPerms'])) : "";
     
     writeJsonFile($fixPaths['settings'],$settings);

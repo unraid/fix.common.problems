@@ -233,6 +233,7 @@ $(function() {
   $("#disableSpinUp").val("<?=$settings['disableSpinUp']?>");
   $("#hacksPerDay").val("<?=$settings['hacksPerDay']?>");
   $("#logIgnored").val("<?=$settings['logIgnored']?>");
+  $("#dockerContainerCheck").val("<?=$settings['dockerContainerCheck']?>");
   $("#excludedPerms").val("<?=$settings['excludedPerms'] ?? ""?>");
 
   if ( "<?=$troubleshoot?>" ) {
@@ -322,9 +323,10 @@ function apply() {
   var disableSpinUp = $("#disableSpinUp").val();
   var hacksPerDay = $("#hacksPerDay").val();
   var logIgnored = $("#logIgnored").val();
+  var dockerContainerCheck = $("#dockerContainerCheck").val();
   var excludedPerms = $("#excludedPerms").val();
   
-  $.post(caURL,{action:'apply',excludedPerms:excludedPerms,logIgnored:logIgnored,frequency:frequency,notifications:notifications,disableSpinUp:disableSpinUp,hacksPerDay:hacksPerDay});
+  $.post(caURL,{action:'apply',excludedPerms:excludedPerms,logIgnored:logIgnored,frequency:frequency,notifications:notifications,disableSpinUp:disableSpinUp,hacksPerDay:hacksPerDay,dockerContainerCheck:dockerContainerCheck});
   $("#applyButton").prop("disabled",true);
 }
 
@@ -380,6 +382,13 @@ function showCredits() {
     <option value='no'>No</option>
   </td>
 </tr>
+<tr>
+  <td><b>Check if Docker containers have updates?</b></td>
+  <td><select id='dockerContainerCheck' onchange='enableApply();'>
+    <option value='true'>Yes (default)</option>
+    <option value='false'>No</option>
+  </td>
+</tr>
 </table>
 </div>
 <div></div><div style='margin-left:540px;'>
@@ -392,6 +401,7 @@ function showCredits() {
 > <b>Send notifications on errors</b> determines under what circumstances the plugin will notify you through unRaid's notification system of any issues<br>
 > <b>Avoid spinning up disks for tests</b> - Will try and avoid certain tests on disks (notably the write check) that unRaid thinks are currently spun down<br>
 > <b>Number of allowed invalid logins per day</b> - This is the number of "grace" invalid logins allowed per day either via the local console or through SSH / Telnet (ie: you typed your password wrong)  This is used to determine if any hacking attempts are being made on your server<br>
+> <b>Check if Docker containers have updates</b> - Allows you to disable the checks (and warnings) for Docker Container/Application updates. This may be useful if you are using Docker Compose or another 3rd party tool to manage container updates<br>
 
 
 <input type='button' id='applyButton' value='Apply' onclick='apply();' disabled><input type='button' value='Rescan' onclick='rescan();'><input type='button' onclick='done();' value='Done'>
