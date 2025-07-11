@@ -24,6 +24,7 @@ if ( ! isset($settings['frequency']) ) { $settings['frequency'] = "disabled"; }
 if ( ! isset($settings['disableSpinUp']) ) { $settings['disableSpinUp'] = "true"; }
 if ( ! isset($settings['hacksPerDay']) ) { $settings['hacksPerDay'] = 10; }
 if ( ! isset($settings['logIgnored']) ) { $settings['logIgnored'] = "yes"; }
+if ( ! isset($settings['dockerContainerCheck']) ) { $settings['dockerContainerCheck'] = "true"; }
 
 if ( is_file("/tmp/fix.common.problems/troubleshoot") ) { $troubleshoot = true; } else $troubleshoot = false;
 

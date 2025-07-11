@@ -3,7 +3,7 @@
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
 <!ENTITY version   "2025.07.10">
-<!ENTITY md5       "16c1d735e1a701c9acdd5dce684fa319">
+<!ENTITY md5       "d21d41f77c45a9268c27e7737d36f7f7">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
