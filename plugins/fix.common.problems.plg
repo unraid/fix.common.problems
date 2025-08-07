@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
-<!ENTITY version   "2025.07.10">
-<!ENTITY md5       "d21d41f77c45a9268c27e7737d36f7f7">
+<!ENTITY version   "2025.05.29">
+<!ENTITY md5       "8a1f11999fd5db889ab743553c4afe7e">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
@@ -13,9 +13,6 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="warning" min="6.7.0">
 
 <CHANGES>
-###2025.07.10
-- Added: new setting toggle to allow disabling checks and warnings for "Docker Application foobar has an update available for it"
-
 ###2025.05.29
 - Fixed: Plugins not present within application feed were being misidentified with incorrect messaging if a replacement with identical filename was present
 - Fixed: Typo in some messages
