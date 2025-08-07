@@ -60,6 +60,7 @@ if ( ! ($fixSettings['notifications'] ?? "") ) { $fixSettings['notifications'] =
 if ( ! ($fixSettings['disableSpinUp'] ?? "") ) { $fixSettings['disableSpinUp'] = "true"; }
 if ( ! ($fixSettings['hacksPerDay'] ?? "") ) { $fixSettings['hacksPerDay'] = 10; }
 if ( ! ($fixSettings['logIgnored'] ?? "") ) { $fixSettings['logIgnored'] = "yes"; }
+if ( ! ($fixSettings['dockerContainerCheck'] ?? "") ) { $fixSettings['dockerContainerCheck'] = "true"; }
 
 # download updated appfeed if necessary
 
@@ -182,6 +183,9 @@ if ( $troubleshooting ?? false) {
 	"unraidPatchInstalled",
 	"TSHostMode"
 	);
+    if ( $fixSettings['dockerContainerCheck'] == "false" ) {
+        $tests = array_diff($tests,['dockerUpToDate']);
+    }
 	$currentTest = 0;
 	foreach ($tests as $test) {
 		if ( $disableNotifications ) {
