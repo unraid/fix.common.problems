@@ -2,8 +2,8 @@
 ########################################
 #                                      #
 # Fix Common Problems                  #
-# Copyright 2020-2024, Lime Technology #
-# Copyright 2015-2024, Andrew Zawadzki #
+# Copyright 2020-2026, Lime Technology #
+# Copyright 2015-2026, Andrew Zawadzki #
 #                                      #
 # Licenced under GPLv2                 #
 #                                      #
@@ -2140,7 +2140,7 @@ function unknownPluginInstalled() {
               $checkPlugin['PluginURL'] = $checkPlugin['PluginURL'][1];
             }
 
-            if ( $pluginURL == $checkPlugin['PluginURL'] ) {
+            if ( strtolower($pluginURL) == strtolower($checkPlugin['PluginURL']) ) {
               $flag = true;
               break;
             }

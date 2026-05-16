@@ -2,8 +2,8 @@
 ########################################
 #                                      #
 # Fix Common Problems                  #
-# Copyright 2020-2024, Lime Technology #
-# Copyright 2015-2024, Andrew Zawadzki #
+# Copyright 2020-2026, Lime Technology #
+# Copyright 2015-2026, Andrew Zawadzki #
 #                                      #
 # Licenced under GPLv2                 #
 #                                      #
@@ -38,8 +38,8 @@ table {background-color:transparent;}
       </tr>
     </table></center>
     <br>
-    <center><em>Copyright 2020-2024 Lime Technology</em></center>
-    <center><em>Copyright 2015-2024 Andrew Zawadzki</em></center>
+    <center><em>Copyright 2020-2026 Lime Technology</em></center>
+    <center><em>Copyright 2015-2026 Andrew Zawadzki</em></center>
 
   ";
  

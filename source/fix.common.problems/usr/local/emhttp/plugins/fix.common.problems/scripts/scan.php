@@ -3,8 +3,8 @@
 ########################################
 #                                      #
 # Fix Common Problems                  #
-# Copyright 2020-2024, Lime Technology #
-# Copyright 2015-2024, Andrew Zawadzki #
+# Copyright 2020-2026, Lime Technology #
+# Copyright 2015-2026, Andrew Zawadzki #
 #                                      #
 # Licenced under GPLv2                 #
 #                                      #
@@ -154,9 +154,7 @@ if ( $troubleshooting ?? false) {
 	"writeCacheDisabled",
 	"updatePluginSupport",
 	"flashSyslog",
-	"unassignedDevicesPlus",
 	"sysdream",
-	"caNotifications",
 	"legacyVFIO",
 	"checkBonding",
 	"checkSameNetwork",
