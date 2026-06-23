@@ -508,6 +508,25 @@ function getRedirectedURL($url) {
   return curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 }
 
+####################################################################
+# Community Applications can serve some plugin artifacts through an  #
+# edge cache/CDN at  https://<host>/cdn/https://<upstream>  (for     #
+# reliability and to reduce load on the upstream origin).  Resolve   #
+# such a URL back to its upstream target so an installed plugin      #
+# still matches the application feed / moderation list.  Non-CDN     #
+# URLs are returned unchanged.                                       #
+####################################################################
+function resolveCAProxyURL($url) {
+  if ( ! is_string($url) || $url === "" ) {
+    return $url;
+  }
+  # The upstream URL is kept verbatim after the /cdn/ prefix.
+  if ( preg_match('#^https?://[^/]+/cdn/(https?://.+)$#i', $url, $matches) ) {
+    return $matches[1];
+  }
+  return $url;
+}
+
 ###############################################
 # Search array for a particular key and value #
 # returns the index number of the array       #
