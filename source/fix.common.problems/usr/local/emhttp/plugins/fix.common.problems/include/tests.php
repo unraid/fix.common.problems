@@ -777,7 +777,8 @@ function blacklistedPluginsInstalled() {
       if ( ! is_file("/var/log/plugins/$plugin") ) {
         continue;
       }
-      $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin")));
+      $pluginPath = escapeshellarg("/var/log/plugins/$plugin");
+      $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL $pluginPath")));
       if ( isset($caModeration[$pluginURL]['Blacklist']) ) {
         addError("Blacklisted plugin <b>$plugin</b>","This plugin has been blacklisted and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  You should remove this plugin as its continued installation may cause adverse effects on your server.".addLinkButton("Plugins","/Plugins"));
       }
@@ -1189,7 +1190,8 @@ function pluginNotCompatible() {
   foreach ($installedPlugins as $plugin) {
     $minVer = "";
     $maxVer = "";
-    $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin")));
+    $pluginPath = escapeshellarg("/var/log/plugins/$plugin");
+    $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL $pluginPath")));
 
     foreach ( $allApps as $app ) {
       if ( isset($app['Plugin']) ) {
@@ -2133,7 +2135,8 @@ function unknownPluginInstalled() {
           if ( ( $plugin == "fix.common.problems.plg") || ( $plugin == "dynamix.plg" ) || ($plugin == "unRAIDServer.plg") || ($plugin == "community.applications.plg") ) {
             continue;
           }
-          $pluginURL = resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin"));
+          $pluginPath = escapeshellarg("/var/log/plugins/$plugin");
+          $pluginURL = resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL $pluginPath"));
           $flag = false;
           foreach ($allPlugins as $checkPlugin) {
             if ( is_array($checkPlugin['PluginURL']) ) {                  # due to coppit
