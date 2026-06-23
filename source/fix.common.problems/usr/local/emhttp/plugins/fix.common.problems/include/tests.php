@@ -777,7 +777,7 @@ function blacklistedPluginsInstalled() {
       if ( ! is_file("/var/log/plugins/$plugin") ) {
         continue;
       }
-      $pluginURL = getRedirectedURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin"));
+      $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin")));
       if ( isset($caModeration[$pluginURL]['Blacklist']) ) {
         addError("Blacklisted plugin <b>$plugin</b>","This plugin has been blacklisted and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  You should remove this plugin as its continued installation may cause adverse effects on your server.".addLinkButton("Plugins","/Plugins"));
       }
@@ -1189,7 +1189,7 @@ function pluginNotCompatible() {
   foreach ($installedPlugins as $plugin) {
     $minVer = "";
     $maxVer = "";
-    $pluginURL = getRedirectedURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin"));
+    $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin")));
 
     foreach ( $allApps as $app ) {
       if ( isset($app['Plugin']) ) {
@@ -1784,7 +1784,7 @@ function updatePluginSupport() {
   if ( ! is_array($templates) ) { return; }
   $plugins = glob("/boot/config/plugins/*.plg");
   foreach ($plugins as $plugin) {
-    $pluginURL = plugin("pluginURL",$plugin);
+    $pluginURL = resolveCAProxyURL(plugin("pluginURL",$plugin));
     $pluginEntry = searchArray($templates,"PluginURL",$pluginURL);
     if ( $pluginEntry === false ) {
       $pluginEntry = searchArray($templates,"PluginURL",str_replace("https://raw.github.com/","https://raw.githubusercontent.com/",$pluginURL));
@@ -2133,7 +2133,7 @@ function unknownPluginInstalled() {
           if ( ( $plugin == "fix.common.problems.plg") || ( $plugin == "dynamix.plg" ) || ($plugin == "unRAIDServer.plg") || ($plugin == "community.applications.plg") ) {
             continue;
           }
-          $pluginURL = exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin");
+          $pluginURL = resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL /var/log/plugins/$plugin"));
           $flag = false;
           foreach ($allPlugins as $checkPlugin) {
             if ( is_array($checkPlugin['PluginURL']) ) {                  # due to coppit
