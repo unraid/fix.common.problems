@@ -546,29 +546,33 @@ function searchArray($array,$key,$value) {
   }
   return $result;
 }
-function curl_socket($socket, $url, $postdata = NULL) {
+if ( ! function_exists("curl_socket") ) {
+  function curl_socket($socket, $url, $postdata = NULL) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socket);
     if ($postdata !== NULL) {
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
+      curl_setopt($ch, CURLOPT_POST, 1);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
     }
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_exec($ch);
+    curl_exec($ch); 
     curl_close($ch);
-}
-function publish($endpoint, $message){
-  global $fromDiagnostics;
-  
-  if ( $fromDiagnostics ) {
-    $msg = json_decode($message,true);
-    if ($msg) 
-      $message = "Fix Common Problems Scan: ".$msg['test'];
-    write($message);
-  }	else
-    curl_socket("/var/run/nginx.socket", "http://localhost/pub/$endpoint?buffer_length=1", $message);
+  }
 }
 
+if ( ! function_exists("publish")) {
+  function publish($endpoint, $message){
+    global $fromDiagnostics;
+    
+    if ( $fromDiagnostics ) {
+      $msg = json_decode($message,true);
+      if ($msg) 
+        $message = "Fix Common Problems Scan: ".$msg['test'];
+      write($message);
+    }	else
+      curl_socket("/var/run/nginx.socket", "http://localhost/pub/$endpoint?buffer_length=1", $message);
+  }
+}
 ###############################################
 # add ipaddr function from Unraid 6.10        #
 ###############################################
