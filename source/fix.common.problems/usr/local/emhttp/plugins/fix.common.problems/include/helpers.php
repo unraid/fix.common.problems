@@ -555,15 +555,15 @@ if ( ! function_exists("curl_socket") ) {
       curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
     }
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_exec($ch); 
+    curl_exec($ch);
     curl_close($ch);
   }
 }
 
-if ( ! function_exists("publish")) {
+if ( ! function_exists("publish") ) {
   function publish($endpoint, $message){
     global $fromDiagnostics;
-    
+  
     if ( $fromDiagnostics ) {
       $msg = json_decode($message,true);
       if ($msg) 
@@ -573,6 +573,7 @@ if ( ! function_exists("publish")) {
       curl_socket("/var/run/nginx.socket", "http://localhost/pub/$endpoint?buffer_length=1", $message);
   }
 }
+
 ###############################################
 # add ipaddr function from Unraid 6.10        #
 ###############################################
