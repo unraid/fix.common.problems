@@ -2,8 +2,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "fix.common.problems">
 <!ENTITY author    "Lime Technology">
-<!ENTITY version   "2026.05.16">
-<!ENTITY md5       "30d53cc262a354c9db234f5e6d3b6ca3">
+<!ENTITY version   "2026.10.12">
+<!ENTITY md5       "d2aef5b4a76219ba227ac5f755c06b5d">
 <!ENTITY launch    "Settings/FixProblems">
 <!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
 <!ENTITY github    "unraid/fix.common.problems">
@@ -13,6 +13,11 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="&pluginURL;" icon="warning" min="6.7.0">
 
 <CHANGES>
+###2026.10.12
+- Fixed: Recognize Community Applications CDN-proxied plugin URLs when matching the application feed
+- Fixed: Escape plugin paths before passing them to exec()
+- Fixed: Avoid redeclaring curl_socket() and publish() if already defined
+
 ###2026.05.16
 - Fixed: Comparison of plugin URLs to account for a slight difference in how the new feed operates
 
