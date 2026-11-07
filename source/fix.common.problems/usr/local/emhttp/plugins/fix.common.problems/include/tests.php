@@ -2465,4 +2465,49 @@ function TSHostMode() {
     }
   }
 }
+
+##############################################################
+# Check for share set to Copy-on-Write, but NOCOW folder (C) #
+##############################################################
+function nocowMismatch() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
+
+  if ( version_compare($unRaidVersion,"6.10.0","<") ) return;
+
+  $disks = my_parse_ini_file($fixPaths['disks.ini'],true);
+  foreach ( $disks as $disk ) {
+    if ( ($disk['status'] ?? "") !== "DISK_OK" ) continue;
+    if ( strpos($disk['fsType'] ?? "","btrfs") === false ) continue;
+    $btrfs[] = $disk['name'];
+  }
+  if ( ! isset($btrfs) ) return;
+
+  # Effective share settings as emhttp has them.  A share without a .cfg file, or without a
+  # shareCOW line in it, uses the default "auto" (Copy-on-Write), as on the share settings page.
+  $shareStates = @parse_ini_file("/var/local/emhttp/shares.ini",true) ?: [];
+
+  foreach ( $shareList as $share ) {
+    if ( startsWith($share,".") ) continue;
+    if ( isset($shareStates[$share]['cow']) ) {
+      $cow = $shareStates[$share]['cow'];
+    } else {
+      $shareCfg = is_file("/boot/config/shares/$share.cfg") ? my_parse_ini_file("/boot/config/shares/$share.cfg") : [];
+      $cow = $shareCfg['shareCOW'] ?? "auto";
+    }
+    if ( $cow == "no" ) continue;
+    foreach ( $btrfs as $pool ) {
+      $path = "/mnt/$pool/$share";
+      if ( ! is_dir($path) ) continue;
+      $attr = exec("lsattr -d ".escapeshellarg($path)." 2>/dev/null",$output,$exitCode);
+      if ( $exitCode !== 0 ) continue;  # cannot read the attribute: nothing is reported
+      $flags = explode(" ",$attr)[0];
+      if ( strpos($flags,"C") !== false ) {
+        $shareHTML = htmlspecialchars($share,ENT_QUOTES);
+        $poolHTML = htmlspecialchars($pool,ENT_QUOTES);
+        $command = htmlspecialchars("find ".escapeshellarg($path)." -xdev -type d -exec chattr -C {} +",ENT_QUOTES);
+        addWarning("Share <b>$shareHTML</b> is set to use Copy-on-Write, but its folder on <b>$poolHTML</b> has the No Copy-on-Write (NOCOW) attribute","New files created in this folder will silently not have checksums and will not self-heal on a redundant pool.  The share setting only applies when the folder is first created.  To make new files use Copy-on-Write, stop anything using the share and run <b>$command</b> at the command prompt.  Files which already exist keep the NOCOW attribute until they are copied (not moved) to a new file ".addLinkButton("$shareHTML Settings","/Shares/Share?name=".urlencode($share)),"https://forums.unraid.net/topic/123037-reconsider-btrfs-nocow-default-option-on-domains-share-due-to-irrecoverable-corruption-risks/");
+      }
+    }
+  }
+}
 ?>

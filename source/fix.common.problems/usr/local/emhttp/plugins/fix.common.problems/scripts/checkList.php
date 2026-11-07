@@ -107,6 +107,7 @@ $checkList = "
 * Check for files stored within a cache pool that isn't allowed within a share's settings
 * Check for flash drive corruption
 * Check for Date and Time on server being incorrect by significant amount
+* Check for shares set to Copy-on-Write whose btrfs folder has the NOCOW attribute
 </strong>
 ";
 echo Markdown($checkList);
