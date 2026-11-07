@@ -65,6 +65,7 @@ $checkList = "
 * Check for permissions of 0777 on shares
 * Check for Hack Attacks on your server
 * Check for Moderated / Blacklisted docker applications
+* Check for docker applications whose template now has required settings with no default, or a renamed variable, missing from the saved template
 * Check for plugins incompatible for your unRaid version
 * Check for cache only shares, but no cache drive
 * Check for user shares named the same as a disk share

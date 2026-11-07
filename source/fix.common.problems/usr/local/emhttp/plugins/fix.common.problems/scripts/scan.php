@@ -129,6 +129,7 @@ if ( $troubleshooting ?? false) {
 	/* "cacheFloorTests", */
 	"checkForHack",
 	"checkForModeration",
+	"templateRequiredFields",
 	"pluginNotCompatible",
 	"cacheOnlyNoCache",
 	"shareNameSameAsDiskName",

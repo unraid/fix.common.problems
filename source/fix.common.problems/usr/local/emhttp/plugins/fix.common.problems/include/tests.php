@@ -1515,6 +1515,144 @@ function templateURLMissing() {
   }
 }
 
+##########################################################################################
+# Check for docker applications whose current template has required fields with no      #
+# default that the saved template does not have, or a variable that has been renamed     #
+##########################################################################################
+
+function templateRequiredFields() {
+  global $fixPaths, $dockerRunning;
+
+  if ( ! $dockerRunning ) { return; }
+  $feed = readJsonFile($fixPaths['templates']);
+  if ( ! is_array($feed['applist'] ?? null) ) { return; }
+
+  # raw GitHub address without scheme variants or branch, so master and main match
+  $urlKey = function($url) {
+    $url = preg_replace('~^https?://raw\.github(usercontent)?\.com/~i','https://raw.githubusercontent.com/',trim($url));
+    $url = preg_replace('~^https?://github\.com/([^/]+)/([^/]+)/(raw|blob)/~i','https://raw.githubusercontent.com/$1/$2/',$url);
+    $url = str_replace("/refs/heads/","/",$url);
+    if ( preg_match('~^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/[^/]+/(.+)$~i',$url,$m) ) {
+      return strtolower("$m[1]/$m[2]/$m[3]");
+    }
+    return strtolower($url);
+  };
+  # image without tag, digest or Docker Hub prefix
+  $repoKey = function($repo) {
+    $repo = preg_replace('~(@.*|:[^/]+)$~','',strtolower(trim($repo)));
+    return preg_replace('~^((docker\.io|index\.docker\.io|registry\.hub\.docker\.com)/)?(library/)?~','',$repo);
+  };
+  # a field is identified by its type and target (port also by protocol); a field turned off counts as its real type
+  $fields = function($configs) {
+    $out = [];
+    foreach ($configs as $a) {
+      $type = strtolower(trim($a['Type'] ?? ""));
+      $disabled = (strpos($type,"disabled:") === 0) || (stripos(trim($a['Name'] ?? ""),"disabled:") === 0);
+      if ( strpos($type,"disabled:") === 0 ) { $type = substr($type,9); }
+      $target = trim($a['Target'] ?? "");
+      if ( $type == "path" && strlen($target) > 1 ) { $target = rtrim($target,"/"); }
+      $key = ($type == "port") ? "port:$target/".(strtolower(trim($a['Mode'] ?? "")) ?: "tcp") : "$type:$target";
+      $out[$key] = ['type'=>$type,'target'=>$target,'name'=>strtolower(trim($a['Name'] ?? "")),'disabled'=>$disabled,
+                    'required'=>strtolower($a['Required'] ?? "") == "true",'noDefault'=>trim($a['Default'] ?? "") === ""];
+    }
+    return $out;
+  };
+
+  # the same image moved to another registry (Docker Hub to ghcr.io or lscr.io, for example)
+  $baseKey = function($repo) use ($repoKey) {
+    return preg_replace('~^(ghcr\.io|lscr\.io|quay\.io|gcr\.io|public\.ecr\.aws)/~','',$repoKey($repo));
+  };
+
+  $apps = [];
+  $byUrl = [];
+  $byRepo = [];
+  $byBase = [];
+  foreach ($feed['applist'] as $app) {
+    if ( ! is_array($app) || ! empty($app['Plugin']) || ! is_string($app['Repository'] ?? null) || empty($app['Config']) ) { continue; }
+    $i = count($apps);
+    $apps[] = $app;
+    foreach (['TemplateURL','caTemplateURL'] as $k) {
+      if ( ! is_string($app[$k] ?? null) || ! $app[$k] ) { continue; }
+      $key = $urlKey($app[$k]);
+      if ( ! in_array($i,$byUrl[$key] ?? [],true) ) { $byUrl[$key][] = $i; }  # both addresses of one app count once
+    }
+    $byRepo[$repoKey($app['Repository'])][] = $i;
+    $byBase[$baseKey($app['Repository'])][] = $i;
+  }
+
+  $dockerClient = new DockerClient();
+  $dockerTemplates = new DockerTemplates();
+  $myTemplates = $dockerTemplates->getAllInfo();
+  foreach ($dockerClient->getDockerContainers() as $container) {
+    $name = $container['Name'];
+    # the saved template Docker Manager uses for this container (found by its Name), else the usual file name
+    $templateFile = $myTemplates[$name]['template'] ?? "";
+    if ( ! $templateFile || ! is_file($templateFile) ) { $templateFile = $dockerTemplates->getUserTemplate($name) ?: $fixPaths['dockerTemplates']."/my-$name.xml"; }
+    $xml = @simplexml_load_file($templateFile);
+    if ( ! $xml ) { continue; }
+    # a version 2 template (what Docker Manager saves) without Config lines has no fields; an old version 1 template is not compared
+    if ( ! isset($xml->Config) && (string)$xml['version'] != "2" ) { continue; }
+    $repo = $repoKey((string)$xml->Repository);
+    $url = trim((string)$xml->TemplateURL);
+
+    # match by template address, then by image, then by the image on another registry;
+    # several templates and nothing to tell them apart means no match
+    $found = ($url && strtolower($url) != "false") ? ($byUrl[$urlKey($url)] ?? []) : [];
+    $support = trim((string)$xml->Support);
+    $project = trim((string)$xml->Project);
+    $sameSupport = function($candidates) use ($apps,$support,$project) {
+      return array_values(array_filter($candidates,function($i) use ($apps,$support,$project) {
+        return ($support && ($apps[$i]['Support'] ?? "") == $support) || ($project && ($apps[$i]['Project'] ?? "") == $project);
+      }));
+    };
+    if ( count($found) > 1 ) {
+      $found = array_values(array_filter($found,function($i) use ($apps,$repoKey,$repo) { return $repoKey($apps[$i]['Repository']) == $repo; }));
+    }
+    if ( count($found) > 1 ) { $found = $sameSupport($found); }
+    foreach ([$byRepo[$repo] ?? [],$byBase[$baseKey($repo)] ?? []] as $candidates) {
+      if ( $found ) { break; }
+      if ( count($candidates) > 1 ) {
+        $candidates = $sameSupport($candidates);
+        if ( count($candidates) != 1 ) { break; }
+      }
+      $found = $candidates;
+    }
+    if ( count($found) != 1 ) { continue; }
+
+    $configs = $apps[$found[0]]['Config'];
+    if ( isset($configs['@attributes']) ) { $configs = [$configs]; }
+    $current = $fields(array_column(array_filter($configs,'is_array'),'@attributes'));
+    $savedConfigs = [];
+    foreach ($xml->Config as $config) {
+      $savedConfigs[] = array_map('strval',iterator_to_array($config->attributes()));
+    }
+    $saved = $fields($savedConfigs);
+    $sharedNetwork = stripos((string)$xml->Network,"container:") === 0 || preg_match('/--(net|network)(=|\s+)[\'"]?container:/',(string)$xml->ExtraParams);
+
+    $missing = [];
+    foreach ($current as $key => $field) {
+      if ( isset($saved[$key]) || $field['disabled'] ) { continue; }
+      if ( $sharedNetwork && $field['type'] == "port" ) { continue; }
+      # same display name and type at another target: a renamed variable, or the user's own choice of path, port or device
+      $moved = null;
+      foreach ($saved as $savedKey => $savedField) {
+        if ( ! isset($current[$savedKey]) && $field['name'] && $savedField['type'] == $field['type'] && $savedField['name'] == $field['name'] ) {
+          $moved = $savedField;
+          break;
+        }
+      }
+      if ( $moved && $field['type'] == "variable" ) {
+        $missing[] = "Variable <b>".htmlspecialchars($field['target'])."</b> (your container has it as <b>".htmlspecialchars($moved['target'])."</b>)";
+      } elseif ( ! $moved && $field['required'] && $field['noDefault'] && in_array($field['type'],['path','port','variable']) ) {
+        $missing[] = ucfirst($field['type'])." <b>".htmlspecialchars($field['target'])."</b> (required, no default)";
+      }
+    }
+    if ( $missing ) {
+      addOther("Docker application <b>$name</b> is missing settings that its template now asks for","The current template for <b>$name</b> has: ".implode(", ",$missing).". This is not an error by itself: your container may provide the same thing another way, and nothing has been changed. If the application needs it, edit the container and add the field with the target shown. Optional help: the <a href='https://github.com/luuvasara/unraid-chronostasis' target='_blank'>Chronostasis</a> plugin compares a saved template with the current one field by field.");
+    }
+  }
+}
+
 function marvelControllerTest() {
   global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
 
