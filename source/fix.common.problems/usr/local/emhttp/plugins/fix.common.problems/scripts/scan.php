@@ -179,7 +179,8 @@ if ( $troubleshooting ?? false) {
 	"oldStyleSSDTrim",
 	"syslinuxRoot",
 	"unraidPatchInstalled",
-	"TSHostMode"
+	"TSHostMode",
+	"shutdownTimeoutFit"
 	);
     if ( $fixSettings['dockerContainerCheck'] == "false" ) {
         $tests = array_diff($tests,['dockerUpToDate']);
