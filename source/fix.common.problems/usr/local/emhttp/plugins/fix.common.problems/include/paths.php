@@ -39,4 +39,8 @@ $fixPaths['Traceacknowledge']           = $fixPaths['tempFiles']."/CallTraceFlag
 $fixPaths['MCEacknowledge']             = $fixPaths['tempFiles']."/mceFlag";
 $fixPaths['docker.cfg']                 = "/boot/config/docker.cfg";
 $fixPaths['scanRunning']                = $fixPaths['tempFiles']."/scanRunning";
+$fixPaths['cpuinfo']                    = "/proc/cpuinfo";
+#$fixPaths['cpuinfo']                   = "/tmp/GitHub/cpuinfo";                  # ONLY REMOVE COMMENT FOR TESTING
+$fixPaths['socRevision']                = "/sys/bus/pci/devices/0000:00:00.0/revision";
+#$fixPaths['socRevision']               = "/tmp/GitHub/revision";                 # ONLY REMOVE COMMENT FOR TESTING
 ?>

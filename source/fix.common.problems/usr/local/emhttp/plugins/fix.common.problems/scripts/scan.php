@@ -179,7 +179,8 @@ if ( $troubleshooting ?? false) {
 	"oldStyleSSDTrim",
 	"syslinuxRoot",
 	"unraidPatchInstalled",
-	"TSHostMode"
+	"TSHostMode",
+	"atomC2000AVR54"
 	);
     if ( $fixSettings['dockerContainerCheck'] == "false" ) {
         $tests = array_diff($tests,['dockerUpToDate']);

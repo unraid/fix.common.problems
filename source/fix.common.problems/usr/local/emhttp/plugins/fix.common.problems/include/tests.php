@@ -2465,4 +2465,33 @@ function TSHostMode() {
     }
   }
 }
+
+##############################################################################
+# Intel Atom C2000 of a stepping affected by erratum AVR54                  #
+##############################################################################
+function atomC2000AVR54() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
+
+  # Family 6, model 77 (4Dh) is the Atom C2000 (Avoton / Rangeley); the model name confirms it
+  $cpuinfo = @file_get_contents($fixPaths['cpuinfo']);
+  if ( ! $cpuinfo ) { return; }
+  if ( ! preg_match("/^cpu family\s*:\s*6\s*$/m",$cpuinfo) || ! preg_match("/^model\s*:\s*77\s*$/m",$cpuinfo) ) { return; }
+  if ( ! preg_match("/^model name\s*:.*Atom\(TM\) CPU\s+(C2\d{3})/m",$cpuinfo,$cpu) ) { return; }
+
+  # The CPUID is 406D8 for both B0 and C0, so the stepping comes from the PCI revision ID of
+  # device 00:00.0 (Intel 329460, Table 8): 0 = A0, 1 = A1, 2 = B0, 3 = C0. AVR54 is fixed in C0.
+  $revision = trim((string)@file_get_contents($fixPaths['socRevision']));
+  if ( ! preg_match("/^(0x)?[0-9a-f]+$/i",$revision) ) { return; }
+  $steppings = [0 => "A0", 1 => "A1", 2 => "B0"];
+  $stepping = $steppings[hexdec(preg_replace("/^0x/i","",$revision))] ?? null;
+  if ( ! $stepping ) { return; }
+
+  addWarning("<b>Intel Atom C2000</b> processor ({$cpu[1]}) is an early stepping affected by erratum AVR54",
+    "Intel lists erratum AVR54 for the B0 stepping of this processor family, fixed in C0: the LPC clock outputs may stop working, and when that happens the system will no longer boot. ".
+    "This server reports stepping <b>$stepping</b> (PCI revision ".htmlspecialchars($revision)." of device 00:00.0; C0, revision 0x03, has the fix). ".
+    "That does not mean it will fail: many boards were fixed with a resistor on the board, a later board revision or a vendor exchange, which cannot be seen from software. ".
+    "This applies to every model of the series, C2308 to C2758: for example, a second-hand Supermicro or ASRock Rack board or a retired NAS built on any of them may or may not have that fix. Ask the board or NAS vendor whether yours does, keep your backups current, and plan for a replacement. ".
+    "Source: Intel Atom C2000 Product Family Specification Update, document 329460, erratum AVR54.",
+    "https://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/atom-c2000-family-spec-update.pdf");
+}
 ?>
