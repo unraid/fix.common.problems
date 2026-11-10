@@ -2465,4 +2465,68 @@ function TSHostMode() {
     }
   }
 }
+
+##############################################################################
+# Container that runs only as root and can write to user shares             #
+##############################################################################
+function dockerRootShareWrite() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
+
+  if ( ! $dockerRunning ) { return; }
+
+  # Paths that hold user shares: /mnt/user, /mnt/user0, /mnt/diskN and /mnt/<pool>.
+  # /mnt/disks and /mnt/remotes (Unassigned Devices) are not user shares and are left out.
+  $roots = ["user","user0"];
+  foreach ( my_parse_ini_file($fixPaths['disks.ini'],true) ?: [] as $disk ) {
+    if ( ($disk['type'] ?? "") == "Cache" && ($disk['name'] ?? "") ) { $roots[] = preg_quote($disk['name'],"#"); }
+  }
+  $shareRoot = "#^/mnt/(?:disk[0-9]+|".implode("|",$roots).")(?:/([^/]+))?#";
+
+  # A container's own appdata (and the system share) are expected to belong to it, so they are not counted
+  $dockerOptions = @my_parse_ini_file($fixPaths['docker.cfg']);
+  $appdata = preg_match("#^/mnt/[^/]+/([^/]+)#",$dockerOptions['DOCKER_APP_CONFIG_PATH'] ?? "",$match) ? $match[1] : "appdata";
+  $skipShares = [$appdata,"system"];
+
+  exec("timeout 20 docker ps -q 2>/dev/null",$running);
+  if ( ! $running ) { return; }
+  exec("timeout 20 docker inspect --format='{{json .Name}}|{{json .Config.User}}|{{json .Mounts}}' ".implode(" ",$running)." 2>/dev/null",$rows);
+  $DockerTemplates = null;
+  foreach ( $rows as $row ) {
+    [$name,$user,$mounts] = array_pad(explode("|",$row,3),3,"null");
+    $name = ltrim(json_decode($name) ?? "","/");
+    $user = trim(json_decode($user) ?? "");
+    # --user set to someone other than root
+    if ( $user !== "" && ! preg_match("/^(0|root)(:|$)/",$user) ) { continue; }
+    $paths = [];
+    foreach ( json_decode($mounts,true) ?: [] as $mount ) {
+      if ( ($mount['Type'] ?? "") != "bind" || ! ($mount['RW'] ?? false) ) { continue; }
+      if ( ! preg_match($shareRoot,$mount['Source'] ?? "",$match) ) { continue; }
+      if ( in_array($match[1] ?? "",$skipShares) ) { continue; }
+      $paths[] = $mount['Source'];
+    }
+    if ( ! $paths ) { continue; }
+
+    # Images like linuxserver.io and binhex start as root and switch to PUID/PGID for the app, so the
+    # configured user says little: look at the processes. Report only if every one of them runs as root.
+    $uids = [];
+    exec("timeout 10 docker top ".escapeshellarg($name)." -eo euid,pid 2>/dev/null",$uids,$rc);
+    array_shift($uids);
+    if ( $rc || ! $uids ) { continue; }
+    $nonRoot = false;
+    foreach ( $uids as $line ) {
+      if ( trim(strtok(trim($line)," ")) !== "0" ) { $nonRoot = true; break; }
+    }
+    if ( $nonRoot ) { continue; }
+
+    $DockerTemplates = $DockerTemplates ?? new DockerTemplates();
+    $template = $DockerTemplates->getUserTemplate($name);
+    addWarning("Docker application <b>$name</b> runs as root and can write to user shares",
+      "Every process in $name runs as root (UID 0) and it has write access to <b>".htmlspecialchars(implode(", ",array_unique($paths)))."</b>. ".
+      "Files it creates there belong to root, so apps that run as the Unraid default user nobody:users (99:100) cannot change them, and SMB users may not be able to either. ".
+      "For example, an unpacker that runs as root extracts files as root:root, and Sonarr then logs <em>Unable to set date of file ... Operation not permitted</em> when it imports them. ".
+      "If the image supports PUID and PGID, set them to 99 and 100; otherwise add <b>--user 99:100</b> to Extra Parameters (Advanced View). Images that switch to PUID/PGID on their own (such as linuxserver.io and binhex) are not reported. ".
+      "Files already written can be fixed with ".addLinkButton("Docker Safe New Permissions","/Tools/DockerSafeNewPerms").
+      ($template ? " Edit the container here: ".addLinkButton("Edit $name","/Docker/UpdateContainer?xmlTemplate=edit:$template") : ""));
+  }
+}
 ?>
