@@ -2465,4 +2465,60 @@ function TSHostMode() {
     }
   }
 }
+
+##############################################################################
+# Container that uses the network of another container which no longer exists #
+##############################################################################
+function networkContainerGone() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
+
+  if ( ! $dockerRunning ) { return; }
+
+  # Docker keeps the network container's ID in NetworkMode (container:<id>). When that container is
+  # recreated (update, Apply) it gets a new ID, and the containers using its network are left with
+  # only loopback until the Docker page rebuilds them.
+  if ( method_exists("DockerUtil","networkOrphans") ) {
+    $orphans = DockerUtil::networkOrphans();
+  } else {
+    # Same rule as DockerUtil::networkOrphans() in newer Unraid releases
+    $orphans = [];
+    $ids = [];
+    $names = [];
+    exec("timeout 20 docker ps -a --no-trunc --format='{{.ID}} {{.Names}}' 2>/dev/null",$rows);
+    foreach ( $rows as $row ) {
+      [$id,$name] = array_pad(explode(" ",$row,2),2,"");
+      $ids[$id] = $name;
+      $names[$name] = $id;
+    }
+    if ( ! $ids ) { return; }
+    $DockerTemplates = new DockerTemplates();
+    exec("timeout 20 docker inspect --format='{{.Name}} {{.HostConfig.NetworkMode}}' ".implode(" ",array_keys($ids))." 2>/dev/null",$modes);
+    foreach ( $modes as $row ) {
+      [$name,$mode] = array_pad(explode(" ",ltrim($row,"/"),2),2,"");
+      if ( strncmp($mode,"container:",10) ) { continue; }
+      $net = substr($mode,10);
+      if ( isset($ids[$net]) || isset($names[$net]) ) { continue; }
+      if ( strlen($net) >= 12 && preg_grep("/^".preg_quote($net,"/")."/",array_keys($ids)) ) { continue; }
+      $orphans[$name] = $DockerTemplates->getUserTemplate($name);
+    }
+  }
+  # Only containers with a template: the Docker page can rebuild those, the others were made outside of Unraid (docker run, compose)
+  $orphans = array_filter($orphans);
+  if ( ! $orphans ) { return; }
+
+  exec("timeout 20 docker inspect --format='{{.Name}} {{.State.Status}}' ".implode(" ",array_map("escapeshellarg",array_keys($orphans)))." 2>/dev/null",$states);
+  foreach ( $states as $row ) {
+    [$name,$state] = array_pad(explode(" ",ltrim($row,"/"),2),2,"");
+    if ( ! isset($orphans[$name]) ) { continue; }
+    if ( $state == "running" || $state == "paused" ) {
+      $now = "It still shows as running (and healthy, if it has a health check), but only loopback (lo) is left inside it, so it cannot reach anything over the network and cannot be reached.";
+    } else {
+      $now = "It will not start until it is rebuilt: Docker reports <em>joining network namespace of container: No such container</em>.";
+    }
+    addWarning("Docker application <b>$name</b> has lost its network: the container whose network it uses no longer exists",
+      "$name uses the network of another container (Network Type <b>container:</b>, for example an app routed through a VPN container). That container was recreated, for example by an update, so it now has a new ID, and $name still points at the old one. $now ".
+      "Unraid rebuilds such containers when the Docker page is opened in a browser, so this mostly happens after unattended updates (for example scheduled updates or scripts). Open the Docker page, or edit $name and select Apply, which rebuilds it: ".
+      addLinkButton("Docker","/Docker").addLinkButton("Edit $name","/Docker/UpdateContainer?xmlTemplate=edit:".$orphans[$name]));
+  }
+}
 ?>
