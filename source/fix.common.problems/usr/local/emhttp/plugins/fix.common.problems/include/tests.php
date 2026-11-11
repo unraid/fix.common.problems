@@ -2465,4 +2465,61 @@ function TSHostMode() {
     }
   }
 }
+
+##############################################################################
+# AMD: the reset before this boot was caused by a hardware fault            #
+##############################################################################
+function amdResetReason() {
+  global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList, $unRaidVersion;
+
+  # On AMD Zen the kernel (6.16 and later, arch/x86/kernel/cpu/amd.c) reads the FCH S5 reset status at boot, clears it, and logs
+  # one line per reason bit: "x86/amd: Previous system reset reason [0x08000800]: an uncorrected error caused a data fabric sync flood event"
+  # /var/log is in RAM, so every syslog file there belongs to the current boot.
+  $value = null;
+  $varLog = @scandir($fixPaths['syslogPath']);
+  if ( ! is_array($varLog) ) { return; }
+  foreach ($varLog as $syslog) {
+    if ( ! startsWith($syslog,"syslog") ) { continue; }
+    $file = $fixPaths['syslogPath']."/".$syslog;
+    if ( ! is_file($file) ) { continue; }
+    $output = [];
+    exec("grep -a -h -o 'x86/amd: Previous system reset reason \[0x[0-9a-fA-F]*\]' ".escapeshellarg($file)." 2>/dev/null | tail -n 1",$output);
+    if ( $output && preg_match("/\[0x([0-9a-f]+)\]/i",end($output),$match) ) {
+      $value = hexdec($match[1]);
+    }
+  }
+  if ( $value === null ) { return; }
+
+  # Bits that mean a fault; a reset or power-off someone asked for (reboot, reset button, power button, ACPI) is not reported
+  $faults = [
+    0  => ["thermal", "the thermal trip pin was tripped"],
+    9  => ["thermal", "the processor's internal thermal limit was tripped"],
+    23 => ["fault", "an internal processor shutdown event occurred"],
+    24 => ["fault", "the system failed to boot before the failed-boot timer expired"],
+    25 => ["fault", "the hardware watchdog timer expired"],
+    27 => ["fault", "an uncorrected error caused a data fabric sync flood event"],
+    29 => ["fault", "the FCH and MP1 failed the warm reset handshake"],
+    30 => ["fault", "a parity error occurred"],
+    31 => ["fault", "a software sync flood event occurred"],
+  ];
+  $found = [];
+  $thermal = false;
+  foreach ($faults as $bit => $fault) {
+    if ( $value & (1 << $bit) ) {
+      $found[] = $fault[1];
+      if ( $fault[0] == "thermal" ) { $thermal = true; }
+    }
+  }
+  if ( ! $found ) { return; }
+
+  $advice = $thermal
+    ? "Check the processor cooler is seated and its fan runs, the case airflow, and dust. "
+    : "The processor detected the error itself, and no machine check record survives such a reset, so the logs cannot say which part caused it: the processor or its memory controller, the RAM, the board's power delivery or the power supply. Common first steps: update the BIOS (it carries AMD's AGESA firmware) and load its defaults, run the RAM at its default speed (XMP/DOCP/EXPO off), set Power Supply Idle Control to Typical Current Idle, then run several passes of Memtest86+. If the resets continue, test one DIMM at a time, then the power supply. ";
+  addWarning("<b>AMD processor</b> reports that the last reset before this boot was caused by a hardware fault",
+    "At boot the processor reported why the system last reset: <b>".implode("</b>; <b>",$found)."</b> (reset status ".sprintf("0x%08x",$value)."). ".
+    "This was an unplanned reset, not a reboot or shutdown someone asked for. ".
+    $advice.
+    "Keep the <a href='https://docs.unraid.net/go/syslog-server/' target='_blank'>syslog mirror</a> enabled so the next one is recorded. The message clears after a normal reboot.",
+    "https://forums.unraid.net/topic/46802-faq-for-unraid-v6/page/2/#findComment-819173");
+}
 ?>
