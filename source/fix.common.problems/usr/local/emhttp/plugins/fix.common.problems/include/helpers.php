@@ -527,6 +527,67 @@ function resolveCAProxyURL($url) {
   return $url;
 }
 
+#####################################################################
+# Deprecated / blacklisted state of an app in the application feed. #
+# The feed carries the flags that a template's own author sets       #
+# (<Deprecated>, <Blacklist>, <DeprecatedMaxVer>) as well as the     #
+# moderators' ones; Moderation.json only has the latter.  Same rules #
+# as Community Applications: the top level "deprecated" and          #
+# "blacklisted" maps (PluginURL or Repository => reason) and the     #
+# applist entry's own flags, compared without regard to case.       #
+# $keys: PluginURL(s) of a plugin, or image name variants of a       #
+# container.  Returns ["Name","Support","Deprecated","Blacklist",    #
+# "Reason"] or null when the feed has no such app.                   #
+#####################################################################
+function caFeedStatus($templates,$keys,$plugin=true) {
+  global $unRaidVersion;
+
+  if ( ! is_array($templates['applist'] ?? null) ) return null;
+  $keys = array_values(array_filter(array_unique(array_map(function($key) { return strtolower(trim($key)); },$keys))));
+  if ( ! $keys ) return null;
+
+  $found = null;
+  foreach ($templates['applist'] as $app) {
+    if ( $plugin != isset($app['Plugin']) ) continue;
+    $key = $plugin ? ($app['PluginURL'] ?? "") : ($app['Repository'] ?? "");
+    if ( is_array($key) ) $key = $key[1] ?? "";      # PluginURL can be an array (see unknownPluginInstalled)
+    if ( ! is_string($key) || ! in_array(strtolower(trim($key)),$keys) ) continue;
+    $found = $found ?? $app;
+    # several templates can point at one image or plugin: prefer one that carries a flag
+    if ( filter_var($app['Deprecated'] ?? false,FILTER_VALIDATE_BOOLEAN) || filter_var($app['Blacklist'] ?? false,FILTER_VALIDATE_BOOLEAN) ) {
+      $found = $app;
+      break;
+    }
+  }
+  $reason = "";
+  $deprecated = $blacklist = false;
+  foreach (["deprecated","blacklisted"] as $map) {
+    foreach ( ($templates[$map] ?? []) as $key => $why ) {
+      if ( in_array(strtolower(trim($key)),$keys) ) {
+        if ( $map == "deprecated" ) $deprecated = true; else $blacklist = true;
+        $reason = is_string($why) ? $why : $reason;
+      }
+    }
+  }
+  if ( ! $found && ! $deprecated && ! $blacklist ) return null;
+
+  $found = $found ?? [];
+  $deprecated = $deprecated || filter_var($found['Deprecated'] ?? false,FILTER_VALIDATE_BOOLEAN);
+  $blacklist  = $blacklist  || filter_var($found['Blacklist'] ?? false,FILTER_VALIDATE_BOOLEAN);
+  if ( ($found['DeprecatedMaxVer'] ?? "") && $unRaidVersion && version_compare($unRaidVersion,$found['DeprecatedMaxVer'],">") ) {
+    $deprecated = true;
+  }
+  if ( is_string($found['ModeratorComment'] ?? null) && $found['ModeratorComment'] ) $reason = $found['ModeratorComment'];
+
+  # Feed text comes from template authors: return it as inert text, and the Support link only as http(s)
+  $support = $found['Support'] ?? "";
+  $support = ( is_string($support) && preg_match("#^https?://#i",trim($support)) ) ? htmlspecialchars(trim($support),ENT_QUOTES) : "";
+  $name = is_string($found['Name'] ?? null) ? htmlspecialchars($found['Name'],ENT_QUOTES) : "";
+  $reason = htmlspecialchars(trim(strip_tags($reason)),ENT_QUOTES);
+
+  return ["Name"=>$name,"Support"=>$support,"Deprecated"=>$deprecated,"Blacklist"=>$blacklist,"Reason"=>$reason];
+}
+
 ###############################################
 # Search array for a particular key and value #
 # returns the index number of the array       #

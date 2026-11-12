@@ -771,19 +771,33 @@ function blacklistedPluginsInstalled() {
   global $fixPaths, $fixSettings, $autoUpdateOverride, $developerMode, $communityApplicationsInstalled, $dockerRunning, $ignoreList, $shareList;
 
   $caModeration = readJsonFile($fixPaths['moderation']);
-  if ( $caModeration ) {
+  $templates = readJsonFile($fixPaths['templates']);
+  if ( $caModeration || $templates ) {
     $pluginList = array_diff(scandir("/var/log/plugins"),array(".",".."));
     foreach ($pluginList as $plugin) {
       if ( ! is_file("/var/log/plugins/$plugin") ) {
         continue;
       }
       $pluginPath = escapeshellarg("/var/log/plugins/$plugin");
-      $pluginURL = getRedirectedURL(resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL $pluginPath")));
+      $installedURL = resolveCAProxyURL(exec("/usr/local/emhttp/plugins/dynamix.plugin.manager/scripts/plugin pluginURL $pluginPath"));
+      $pluginURL = getRedirectedURL($installedURL);
       if ( isset($caModeration[$pluginURL]['Blacklist']) ) {
         addError("Blacklisted plugin <b>$plugin</b>","This plugin has been blacklisted and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  You should remove this plugin as its continued installation may cause adverse effects on your server.".addLinkButton("Plugins","/Plugins"));
       }
       if ( isset($caModeration[$pluginURL]['Deprecated']) ) {
         addWarning("Deprecated plugin <b>$plugin</b>","This plugin has been deprecated and should no longer be used due to the following reason(s): <em><b>".$caModeration[$pluginURL]['ModeratorComment']."</b></em>  While this plugin should still be functional, it is not recommended to continue to use it.".addLinkButton("Plugins","/Plugins"));
+      }
+      if ( isset($caModeration[$pluginURL]['Blacklist']) || isset($caModeration[$pluginURL]['Deprecated']) ) continue;
+      # Flags set in the plugin's own template reach the application feed but not Moderation.json
+      $status = caFeedStatus($templates,[$installedURL,$pluginURL]);
+      if ( ! $status ) continue;
+      $name = $status['Name'] ? "<b>{$status['Name']}</b>" : "This plugin";
+      $reason = ($status['Reason'] && $status['Reason'] != "Deprecated application") ? "  Reason given: <em>".$status['Reason']."</em>" : "";
+      $more = $status['Support'] ? " (More Information)" : "";
+      if ( $status['Blacklist'] ) {
+        addError("Blacklisted plugin <b>$plugin</b>","$name is blacklisted in Community Applications, so it can no longer be installed from there.$reason  You should remove it, as its continued installation may cause adverse effects on your server.".addLinkButton("Plugins","/Plugins"),$status['Support']);
+      } elseif ( $status['Deprecated'] ) {
+        addWarning("Deprecated plugin <b>$plugin</b>","$name is marked deprecated in Community Applications, by its author or by the moderators.$reason  It should still work for now, but Community Applications no longer offers it for new installs and it may stop working after a future Unraid update.  Check its support thread$more for a replacement or a maintained fork, then remove it here:".addLinkButton("Plugins","/Plugins"),$status['Support']);
       }
     }
   } else {
@@ -1142,7 +1156,8 @@ function checkForModeration() {
   if ( ! $dockerRunning ) { return; }
 
   $moderation = readJsonFile($fixPaths['moderation']);
-  if ( ! is_array($moderation) ) { return; }
+  $templates = readJsonFile($fixPaths['templates']);
+  if ( ! $moderation && ! $templates ) { return; }
 
   $dockerClient = new DockerClient();
   $info = $dockerClient->getDockerContainers();
@@ -1159,6 +1174,14 @@ function checkForModeration() {
       $comments = $moderation[$Repository];
     }
     if ( empty($comments) ) {
+      # Flags set in the app's own template (or by CA itself) reach the application feed but not Moderation.json
+      $status = caFeedStatus($templates,[$image,$Repository,"$Repository:latest"],false);
+      if ( $status && ($status['Blacklist'] || $status['Deprecated']) ) {
+        $reason = ($status['Reason'] && $status['Reason'] != "Deprecated application") ? "  Reason given: <em>".$status['Reason']."</em>" : "";
+        $what = $status['Blacklist'] ? "blacklisted" : "deprecated";
+        $more = $status['Support'] ? " (More Information)" : "";
+        addWarning("Docker application <b>".$dockerApp['Name']."</b> is $what in Community Applications","<b>".$dockerApp['Name']."</b> (".$dockerApp['Image'].") is marked $what in Community Applications, by its template author or by the moderators.$reason  It may still run, but Community Applications no longer offers it for new installs and it may stop receiving updates.  Check its support thread$more for a replacement.".addLinkButton("Docker","/Docker"),$status['Support']);
+      }
       continue;
     }
     if ( isset($comments['Blacklist']) ) {

@@ -53,7 +53,7 @@ $checkList = "
 * Check for destination set for Alert level notifications
 * Check for destination set for Warning level notifications 
 * Check for email server and recipient addresses set if email notifications are selected
-* Check for plugins installed being blacklisted
+* Check for plugins installed being blacklisted or deprecated (Moderation.json and the flags in the application feed)
 * Check for plugins installed not being known to Community Applications (implies incompatible)
 * Check for ad blocker's interfering with unRaid
 * Check for illegal characters in share names
@@ -64,7 +64,7 @@ $checkList = "
 * Check for cache floor greater than cache total space
 * Check for permissions of 0777 on shares
 * Check for Hack Attacks on your server
-* Check for Moderated / Blacklisted docker applications
+* Check for Moderated / Blacklisted / Deprecated docker applications (Moderation.json and the flags in the application feed)
 * Check for plugins incompatible for your unRaid version
 * Check for cache only shares, but no cache drive
 * Check for user shares named the same as a disk share
