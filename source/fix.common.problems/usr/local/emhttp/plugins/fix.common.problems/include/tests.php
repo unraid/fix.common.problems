@@ -1152,6 +1152,13 @@ function checkForModeration() {
     $Repository = str_replace(":latest","",$image);
 
     $comments = [];
+    # the same image written another way (owncloud for library/owncloud:latest, docker.io/, a digest, capitals); an exact key below still wins
+    foreach ($moderation as $key => $entry) {
+      if ( isset($entry['ModeratorComment']) && sameImage($image,$key) ) {
+        $comments = $entry;
+        break;
+      }
+    }
     if ( isset($moderation[$image]['ModeratorComment']) ) {
       $comments = $moderation[$image];
     }
@@ -1595,10 +1602,14 @@ function checkDockerCompatible() {
     $image = $dockerApp['Image'];
     $Repository = explode(":",$image);
     $index = searchArray($allApps,"Repository",$Repository[0]);
+    if ( $index === false ) {
+      $index = array_key_first(templatesForImage($allApps,$image)) ?? false;
+    }
     if ( $index === false ) { continue;}
     $template = $allApps[$index];
-    if ( isset($moderation[$Repository[0]]) ) {
-      $template = array_merge($template,$moderation[$Repository[0]]);
+    $modKey = isset($moderation[$Repository[0]]) ? $Repository[0] : $template['Repository'];
+    if ( isset($moderation[$modKey]) ) {
+      $template = array_merge($template,$moderation[$modKey]);
     }
     if ( ! versionCheck($template) ) {
       unset($verMsg);

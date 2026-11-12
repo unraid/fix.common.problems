@@ -546,6 +546,64 @@ function searchArray($array,$key,$value) {
   }
   return $result;
 }
+
+#######################################################################
+# One container image can be written several ways.  Reduce it to the  #
+# form Docker itself treats as the same image (as dockerMan does in   #
+# DockerUtil::parseImageTag):                                         #
+#   owncloud, library/owncloud and docker.io/library/owncloud are one #
+#   no tag means :latest, and a @sha256: digest is left out           #
+#   the name is lower case (Docker only allows that), the tag is kept #
+# Any other registry (ghcr.io/, lscr.io/, ...) stays part of the name #
+# Returns ["name"=>"library/owncloud","tag"=>"latest",                #
+#          "tagged"=>false]   (tagged: a tag was written)             #
+#######################################################################
+function normalizeImage($image) {
+  static $cache = [];
+
+  $image = is_string($image) ? trim($image) : "";
+  if ( isset($cache[$image]) ) return $cache[$image];
+
+  $ref = explode("@",$image)[0];
+  $tag = "";
+  $colon = strrpos($ref,":");
+  if ( $colon !== false && $colon > (int)strrpos($ref,"/") ) {   # a colon before the last / is a registry port
+    $tag = substr($ref,$colon+1);
+    $ref = substr($ref,0,$colon);
+  }
+  $parts = explode("/",strtolower($ref));
+  if ( count($parts) > 1 && in_array($parts[0],["docker.io","index.docker.io","registry-1.docker.io","registry.hub.docker.com"]) ) {
+    array_shift($parts);
+  }
+  if ( count($parts) == 1 && $parts[0] !== "" ) {
+    array_unshift($parts,"library");
+  }
+  return $cache[$image] = ["name"=>implode("/",$parts),"tag"=>($tag === "") ? "latest" : $tag,"tagged"=>($tag !== "")];
+}
+
+###########################################################################
+# true when the installed $image and a CA Repository entry are one image. #
+# $anyTag: a Repository written without a tag matches every tag           #
+###########################################################################
+function sameImage($image,$repository,$anyTag=false) {
+  $installed = normalizeImage($image);
+  $template = normalizeImage($repository);
+  if ( $installed['name'] === "" || $installed['name'] !== $template['name'] ) return false;
+  return ($anyTag && ! $template['tagged']) || $installed['tag'] === $template['tag'];
+}
+
+###########################################################################
+# The application feed entries for an installed container image written   #
+# another way (sameImage).  A Repository without a tag matches every tag. #
+# Keys and order of $apps are kept.                                       #
+###########################################################################
+function templatesForImage($apps,$image) {
+  if ( ! is_array($apps) ) return [];
+  return array_filter($apps,function($app) use ($image) {
+    return isset($app['Repository']) && is_string($app['Repository']) && sameImage($image,$app['Repository'],true);
+  });
+}
+
 if ( ! function_exists("curl_socket") ) {
   function curl_socket($socket, $url, $postdata = NULL) {
     $ch = curl_init($url);
