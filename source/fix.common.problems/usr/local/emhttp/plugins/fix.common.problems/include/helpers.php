@@ -687,4 +687,169 @@ function write(...$messages){
   }
   curl_close($com);
   }
+#####################################################################################################
+#                                                                                                   #
+# Can an image still be pulled? Asked anonymously, the way `docker pull` asks a registry.           #
+#   ok           the registry serves it (HTTP 200)                                                  #
+#   unavailable  the registry refuses it: no such tag (404 MANIFEST_UNKNOWN / NAME_UNKNOWN), or     #
+#                access denied to an anonymous client (401 on Docker Hub, 403 on ghcr.io and        #
+#                lscr.io) while no login for that registry is stored in /root/.docker/config.json.  #
+#                A registry answers a removed image and a private one the same way.                 #
+#   unknown      no answer, a timeout, 429, a server error, a redirect, a host that is not public,   #
+#                a token service on another host than the registry's own, or a stored login         #
+#                                                                                                   #
+#####################################################################################################
+
+# Docker's reading of an image reference: the first part is a registry when it has a dot or a colon or is
+# "localhost", otherwise Docker Hub (library/ for a one-word name); no tag means latest; a @sha256 digest wins.
+# Returns [registry, API host, path, reference] or false.
+function fcpImageRef($image) {
+  $image = trim((string)$image);
+  if ( $image === "" || strlen($image) > 512 || preg_match('/[^A-Za-z0-9._\-\/:@]/',$image) ) return false;
+  $ref = "latest";
+  if ( ($at = strpos($image,"@")) !== false ) {
+    $ref = substr($image,$at+1);
+    $image = substr($image,0,$at);
+    if ( ! preg_match('/^sha256:[a-f0-9]{64}$/',$ref) ) return false;
+  }
+  $parts = explode("/",$image);
+  $host = "docker.io";
+  if ( count($parts) > 1 && (strpbrk($parts[0],".:") !== false || $parts[0] == "localhost") ) $host = array_shift($parts);
+  $last = array_pop($parts);
+  if ( ($c = strrpos($last,":")) !== false ) {
+    if ( $ref == "latest" ) $ref = substr($last,$c+1);
+    $last = substr($last,0,$c);
+  }
+  $parts[] = $last;
+  $host = strtolower($host);
+  $parts = array_map("strtolower",$parts);
+  if ( in_array($host,["docker.io","index.docker.io","registry-1.docker.io","registry.hub.docker.com"]) ) {
+    $host = "docker.io";
+    if ( count($parts) == 1 ) array_unshift($parts,"library");
+  }
+  $path = implode("/",$parts);
+  if ( ! preg_match('/^[A-Za-z0-9_][A-Za-z0-9_.\-]{0,127}$/',$ref) && strpos($ref,"sha256:") !== 0 ) return false;
+  if ( ! preg_match('~^[a-z0-9]+(?:(?:[._]|__|-+|/)[a-z0-9]+)*$~',$path) ) return false;
+  return [$host, $host == "docker.io" ? "registry-1.docker.io" : $host, $path, $ref];
+}
+
+# Registries with a stored login. A credential store or helper counts for every registry.
+function fcpRegistryLogins($configFile="/root/.docker/config.json") {
+  $cfg = readJsonFile($configFile);
+  if ( ! empty($cfg['credsStore']) ) return ["*"];
+  $out = [];
+  foreach ( array_merge(array_keys((array)($cfg['auths'] ?? [])),array_keys((array)($cfg['credHelpers'] ?? []))) as $key ) {
+    $host = explode("/",strtolower(preg_replace('~^https?://~i',"",(string)$key)))[0];
+    if ( in_array($host,["index.docker.io","registry-1.docker.io","registry.hub.docker.com"]) ) $host = "docker.io";
+    if ( $host ) $out[] = $host;
+  }
+  return $out;
+}
+
+# The token service a registry may send a client to: the registry itself or its known auth host. A realm on any
+# other host is not followed, so a registry answer cannot make the server fetch another address.
+function fcpRealmOK($api,$realm) {
+  $allowed = ["registry-1.docker.io" => ["auth.docker.io"], "lscr.io" => ["ghcr.io"], "ghcr.io" => ["ghcr.io"], "quay.io" => ["quay.io"]];
+  $p = parse_url($realm);
+  if ( ! is_array($p) || strtolower($p['scheme'] ?? "") != "https" || isset($p['user']) || isset($p['pass']) ) return false;
+  $host = strtolower(($p['host'] ?? "").(isset($p['port']) ? ":".$p['port'] : ""));
+  return $host !== "" && ($host == strtolower($api) || in_array($host,$allowed[strtolower($api)] ?? []));
+}
+
+# Public addresses of a host, or [] when it has none or any of them is private, loopback, link-local or reserved.
+function fcpPublicIPs($host,$resolve=null) {
+  $host = trim($host,"[]");
+  $ips = filter_var($host,FILTER_VALIDATE_IP) ? [$host] : ($resolve ? $resolve($host) : (@gethostbynamel($host) ?: []));
+  if ( ! $ips ) return [];
+  foreach ($ips as $ip)
+    if ( ! filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ) return [];
+  return array_values($ips);
+}
+
+# One HTTPS GET to a public address: [status, headers (lower case names), body]; status 0 when there was no answer or
+# the host is not public. Redirects are not followed, and curl connects to the address that was checked.
+function fcpRegistryGet($url,$headers=[]) {
+  $u = parse_url($url);
+  if ( ! is_array($u) || strtolower($u['scheme'] ?? "") != "https" || empty($u['host']) ) return [0,[],""];
+  $ips = fcpPublicIPs($u['host']);
+  if ( ! $ips ) return [0,[],""];
+  $head = [];
+  $ch = curl_init($url);
+  curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => false,
+    CURLOPT_RESOLVE => [trim($u['host'],"[]").":".($u['port'] ?? 443).":".$ips[0]],
+    CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 5, CURLOPT_USERAGENT => "fix.common.problems",
+    CURLOPT_PROTOCOLS => CURLPROTO_HTTPS, CURLOPT_HTTPHEADER => $headers,
+    CURLOPT_HEADERFUNCTION => function($c,$line) use (&$head) {
+      if ( ($p = strpos($line,":")) !== false ) $head[strtolower(trim(substr($line,0,$p)))] = trim(substr($line,$p+1));
+      return strlen($line);
+    }]);
+  $body = curl_exec($ch);
+  $code = (int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
+  curl_close($ch);
+  return [$body === false ? 0 : $code, $head, is_string($body) ? substr($body,0,65536) : ""];
+}
+
+# The state of one image. $get exists for the tests.
+function fcpImageState($image,$logins,$get="fcpRegistryGet") {
+  $ref = fcpImageRef($image);
+  if ( ! $ref ) return "unknown";
+  [$host,$api,$path,$tag] = $ref;
+  $login = in_array("*",$logins) || in_array($host,$logins);
+  $accept = "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json";
+  $url = "https://$api/v2/$path/manifests/$tag";
+  [$code,$head,$body] = $get($url,[$accept]);
+  if ( $code == 401 && preg_match('/^bearer\s+(.*)$/i',$head['www-authenticate'] ?? "",$m) ) {
+    preg_match_all('/(\w+)="([^"]*)"/',$m[1],$kv,PREG_SET_ORDER);
+    $p = [];
+    foreach ($kv as $x) $p[strtolower($x[1])] = $x[2];
+    $realm = $p['realm'] ?? "";
+    if ( preg_match('/[\s"\'<>]/',$realm) || ! fcpRealmOK($api,$realm) ) return "unknown";
+    $query = http_build_query(array_filter(["service" => $p['service'] ?? "","scope" => "repository:$path:pull"],"strlen"));
+    [$tcode,,$tbody] = $get($realm.(strpos($realm,"?") === false ? "?" : "&").$query,[]);
+    if ( $tcode == 401 || $tcode == 403 ) return $login ? "unknown" : "unavailable";
+    $token = @json_decode($tbody,true);
+    $token = is_array($token) ? (string)($token['token'] ?? $token['access_token'] ?? "") : "";
+    if ( $tcode != 200 || $token === "" || preg_match('/[^\x21-\x7E]/',$token) ) return "unknown";
+    [$code,$head,$body] = $get($url,[$accept,"Authorization: Bearer $token"]);
+  }
+  if ( $code == 200 ) return "ok";
+  if ( $code == 404 && preg_match('/"code"\s*:\s*"(MANIFEST_UNKNOWN|NAME_UNKNOWN)"/',$body) ) return "unavailable";
+  if ( $code == 401 || $code == 403 ) return $login ? "unknown" : "unavailable";
+  return "unknown";
+}
+
+# States of several images, each answer kept for 6 hours in $cacheFile. $get and $now exist for the tests.
+function fcpImageStates($images,$cacheFile,$get="fcpRegistryGet",$now=null) {
+  $now = $now ?? time();
+  $store = readJsonFile($cacheFile);
+  $out = [];
+  $logins = null;
+  foreach ( array_unique($images) as $image ) {
+    $s = $store[$image] ?? null;
+    if ( is_array($s) && in_array($s['state'] ?? "",["ok","unavailable","unknown"]) && $now - (int)($s['at'] ?? 0) < 21600 ) {
+      $out[$image] = $s['state'];
+      continue;
+    }
+    $logins = $logins ?? fcpRegistryLogins();
+    $out[$image] = fcpImageState($image,$logins,$get);
+    $store[$image] = ["state" => $out[$image],"at" => $now];
+  }
+  foreach ( $store as $key => $s ) if ( ! is_array($s) || $now - (int)($s['at'] ?? 0) >= 21600 ) unset($store[$key]);
+  @file_put_contents($cacheFile,json_encode($store,JSON_UNESCAPED_SLASHES));
+  return $out;
+}
+
+# The image without tag and registry, to notice the same image under another registry.
+function fcpImageBase($image) {
+  $ref = fcpImageRef($image);
+  if ( ! $ref ) return "";
+  return preg_replace('~^library/~',"",$ref[2]);
+}
+
+# A template address without its branch, so master and main compare equal.
+function fcpTemplateURLKey($url) {
+  $url = str_replace("/refs/heads/","/",strtolower(trim((string)$url)));
+  return preg_replace('~^https?://raw\.github(?:usercontent)?\.com/([^/]+)/([^/]+)/[^/]+/~','$1/$2/',$url);
+}
+
 ?>

@@ -492,6 +492,65 @@ function dockerUpToDate() {
   }
 }
 
+##################################################################################
+# Check for docker applications whose image can no longer be pulled from its    #
+# registry (removed or made private). Unraid's own update check only shows      #
+# "not available" for these, the same as for a network problem.                #
+##################################################################################
+
+function dockerImageUnavailable() {
+  global $fixPaths, $dockerRunning;
+
+  if ( ! $dockerRunning ) return;
+
+  $DockerClient = new DockerClient();
+  $info = $DockerClient->getDockerContainers();
+  $updateStatus = readJsonFile($fixPaths['dockerUpdateStatus']);
+
+  # only what Unraid's update check could not answer: status undef, or no remote digest
+  $ask = [];
+  foreach ($info as $docker) {
+    $status = $updateStatus[$docker['Image']] ?? null;
+    if ( ! is_array($status) ) continue;
+    if ( ($status['status'] ?? "") == "undef" || ($status['remote'] ?? null) === null ) $ask[$docker['Name']] = $docker['Image'];
+  }
+  if ( ! $ask ) return;
+
+  $states = fcpImageStates(array_values($ask),$fixPaths['tempFiles']."/registry-state.json");
+  $templates = readJsonFile($fixPaths['templates']);
+  $allApps = is_array($templates['applist'] ?? null) ? $templates['applist'] : [];
+
+  foreach ($ask as $name => $image) {
+    if ( ($states[$image] ?? "") != "unavailable" ) continue;
+    $registry = fcpImageRef($image)[0];
+
+    # the likely new home: the Apps entry with the same template address, else the same image under another registry
+    $newImage = "";
+    $userTemplate = "/boot/config/plugins/dockerMan/templates-user/my-$name.xml";
+    $xml = is_file($userTemplate) ? @simplexml_load_file($userTemplate) : false;
+    $templateURL = $xml ? fcpTemplateURLKey((string)$xml->TemplateURL) : "";
+    foreach ($allApps as $app) {
+      $repo = (string)($app['Repository'] ?? "");
+      if ( ! $repo || fcpImageBase($repo) == "" || $repo == $image ) continue;
+      if ( $templateURL && fcpTemplateURLKey($app['TemplateURL'] ?? "") == $templateURL && fcpImageRef($repo) && fcpImageRef($repo) != fcpImageRef($image) ) { $newImage = $repo; break; }
+    }
+    if ( ! $newImage ) {
+      foreach ($allApps as $app) {
+        $repo = (string)($app['Repository'] ?? "");
+        if ( $repo && fcpImageBase($repo) == fcpImageBase($image) && fcpImageRef($repo) && fcpImageRef($repo)[0] != $registry ) { $newImage = $repo; break; }
+      }
+    }
+    if ( $newImage && fcpImageStates([$newImage],$fixPaths['tempFiles']."/registry-state.json")[$newImage] != "ok" ) $newImage = "";
+
+    $action = "Docker Application <b>$name</b>: its image <b>".htmlspecialchars($image)."</b> can't be pulled from $registry any more. The registry refuses it, as it does for an image that was removed or made private, so Unraid can't update it and a reinstall would fail. ";
+    if ( $newImage )
+      $action .= "Community Applications lists this app with the image <b>".htmlspecialchars($newImage)."</b>, which can be pulled: Docker tab, Edit, set Repository to it, then Apply. Your settings and appdata stay. ".addLinkButton("Docker","/Docker");
+    else
+      $action .= "Check the app's support thread or project page for where the image is published now, then change Repository on the Docker tab (Edit, Apply). ".addLinkButton("Docker","/Docker");
+    addWarning("Docker Application <b>$name</b>: image can't be pulled any more",$action);
+  }
+}
+
 ######################################################################
 # Check for docker application's config folders pointed at /mnt/user #
 ######################################################################

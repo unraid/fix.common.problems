@@ -113,6 +113,7 @@ if ( $troubleshooting ?? false) {
 /*	"SSDinArray", Not necessary per JorgeB */
 	"pluginsUpToDate",
 	"dockerUpToDate",
+	"dockerImageUnavailable",
 	"dockerConfigUserShare",
 	"varLogFilled",
 	"dockerImageFull",
